@@ -23,13 +23,13 @@ import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/config/th
 import type { SavedAddress, ShippingMethod } from '@/types';
 
 const addressSchema = z.object({
-  full_name: z.string().min(2, 'Name is required'),
+  fullName: z.string().min(2, 'Name is required'),
   phone: z.string().min(10, 'Valid phone is required'),
-  address_line1: z.string().min(5, 'Address is required'),
-  address_line2: z.string().optional(),
+  addressLine1: z.string().min(5, 'Address is required'),
+  addressLine2: z.string().optional(),
   city: z.string().min(2, 'City is required'),
   state: z.string().min(2, 'State is required'),
-  postal_code: z.string().min(4, 'Postal code is required'),
+  postalCode: z.string().min(4, 'Postal code is required'),
   country: z.string().min(1, 'Country is required'),
 });
 
@@ -109,12 +109,21 @@ export default function ShippingScreen() {
 
   const handleAddAddress = async (data: AddressFormData) => {
     try {
+      console.log('Creating address with data:', data);
       const response = await apiClient.post(API_ENDPOINTS.addresses.create, data);
+      console.log('Address created:', response.data);
       setSelectedAddress(response.data);
       setShowAddressForm(false);
       reset();
+      Alert.alert('Success', 'Address saved successfully');
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.error || 'Failed to add address');
+      console.error('Error creating address:', error);
+      console.error('Error response:', error.response?.data);
+      const errorMessage = error.response?.data?.error ||
+        (Array.isArray(error.response?.data?.error)
+          ? error.response?.data?.error.map((e: any) => e.message).join(', ')
+          : 'Failed to add address');
+      Alert.alert('Error', errorMessage);
     }
   };
 
@@ -235,14 +244,14 @@ export default function ShippingScreen() {
 
                   <Controller
                     control={control}
-                    name="full_name"
+                    name="fullName"
                     render={({ field: { onChange, value } }) => (
                       <Input
                         label="Full Name"
                         placeholder="Enter full name"
                         value={value}
                         onChangeText={onChange}
-                        error={errors.full_name?.message}
+                        error={errors.fullName?.message}
                       />
                     )}
                   />
@@ -264,21 +273,21 @@ export default function ShippingScreen() {
 
                   <Controller
                     control={control}
-                    name="address_line1"
+                    name="addressLine1"
                     render={({ field: { onChange, value } }) => (
                       <Input
                         label="Address Line 1"
                         placeholder="Street address"
                         value={value}
                         onChangeText={onChange}
-                        error={errors.address_line1?.message}
+                        error={errors.addressLine1?.message}
                       />
                     )}
                   />
 
                   <Controller
                     control={control}
-                    name="address_line2"
+                    name="addressLine2"
                     render={({ field: { onChange, value } }) => (
                       <Input
                         label="Address Line 2 (Optional)"
@@ -324,14 +333,14 @@ export default function ShippingScreen() {
 
                   <Controller
                     control={control}
-                    name="postal_code"
+                    name="postalCode"
                     render={({ field: { onChange, value } }) => (
                       <Input
                         label="Postal Code"
                         placeholder="Postal code"
                         value={value}
                         onChangeText={onChange}
-                        error={errors.postal_code?.message}
+                        error={errors.postalCode?.message}
                       />
                     )}
                   />
