@@ -7,13 +7,13 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { MapPin, Plus, Check, Truck, Zap, Clock } from 'lucide-react-native';
+import { MapPin, Plus, Check, Truck, Zap, Clock, ArrowLeft } from 'lucide-react-native';
 import { Button, Input, Card, CardContent } from '@/components/ui';
 import { apiClient } from '@/api/client';
 import { API_ENDPOINTS } from '@/config/api';
@@ -119,9 +119,23 @@ export default function ShippingScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Shipping Method */}
+    <>
+      <Stack.Screen
+        options={{
+          headerTitle: 'Shipping',
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={{ padding: 8, marginLeft: -8 }}
+            >
+              <ArrowLeft size={24} color={colors.gray[900]} />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {/* Shipping Method */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Shipping Method</Text>
           {SHIPPING_OPTIONS.map((option) => {
@@ -376,6 +390,7 @@ export default function ShippingScreen() {
         />
       </View>
     </SafeAreaView>
+    </>
   );
 }
 

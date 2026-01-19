@@ -9,10 +9,10 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMutation } from '@tanstack/react-query';
-import { CreditCard, Smartphone, Building } from 'lucide-react-native';
+import { CreditCard, Smartphone, Building, ArrowLeft } from 'lucide-react-native';
 import { Button, Card, CardContent, Input } from '@/components/ui';
 import { apiClient } from '@/api/client';
 import { API_ENDPOINTS } from '@/config/api';
@@ -129,9 +129,23 @@ export default function PaymentScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Payment Method */}
+    <>
+      <Stack.Screen
+        options={{
+          headerTitle: 'Payment',
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={{ padding: 8, marginLeft: -8 }}
+            >
+              <ArrowLeft size={24} color={colors.gray[900]} />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {/* Payment Method */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Payment Method</Text>
           {PAYMENT_OPTIONS.map((option) => {
@@ -275,6 +289,7 @@ export default function PaymentScreen() {
         />
       </View>
     </SafeAreaView>
+    </>
   );
 }
 
