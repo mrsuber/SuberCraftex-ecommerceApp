@@ -378,7 +378,7 @@ export default function ProductDetailScreen() {
 
         {/* Bottom Actions */}
         <View style={styles.bottomActions}>
-          <TouchableOpacity style={styles.cartIconButton} onPress={handleAddToCart}>
+          <TouchableOpacity style={styles.cartIconButton} onPress={() => router.push('/(tabs)/cart')}>
             <ShoppingCart size={24} color={colors.primary.DEFAULT} />
             {cartQuantity > 0 && (
               <View style={styles.cartBadge}>
