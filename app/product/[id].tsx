@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
   Heart,
@@ -24,6 +24,7 @@ import {
   Check,
 } from 'lucide-react-native';
 import { Button, Badge } from '@/components/ui';
+import { ProductReviews, ReviewModal } from '@/components/products';
 import { productsApi } from '@/api/products';
 import { useCartStore } from '@/stores/cart-store';
 import { useAuthStore } from '@/stores/auth-store';
@@ -36,12 +37,14 @@ const { width } = Dimensions.get('window');
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { isAuthenticated } = useAuthStore();
   const { addItem, getItemQuantity } = useCartStore();
 
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [showReviewModal, setShowReviewModal] = useState(false);
 
   const { data: product, isLoading, error } = useQuery({
     queryKey: ['product', id],
@@ -131,6 +134,22 @@ export default function ProductDetailScreen() {
 
     handleAddToCart();
     router.push('/checkout/shipping');
+  };
+
+  const handleWriteReview = () => {
+    if (!isAuthenticated) {
+      Alert.alert('Login Required', 'Please log in to write a review.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Login', onPress: () => router.push('/(auth)/login') },
+      ]);
+      return;
+    }
+    setShowReviewModal(true);
+  };
+
+  const handleReviewSubmitted = () => {
+    // Refetch product data to get updated reviews
+    queryClient.invalidateQueries({ queryKey: ['product', id] });
   };
 
   if (isLoading) {
@@ -374,6 +393,18 @@ export default function ProductDetailScreen() {
               )}
             </View>
           </View>
+
+          {/* Reviews Section */}
+          <View style={styles.reviewsSection}>
+            <Text style={styles.reviewsSectionTitle}>Customer Reviews</Text>
+            <ProductReviews
+              productId={product.id}
+              reviews={(product as any).reviews || []}
+              avgRating={(product as any).avgRating || 0}
+              reviewCount={(product as any).reviewCount || 0}
+              onWriteReview={handleWriteReview}
+            />
+          </View>
         </ScrollView>
 
         {/* Bottom Actions */}
@@ -400,6 +431,15 @@ export default function ProductDetailScreen() {
             style={styles.buyNowButton}
           />
         </View>
+
+        {/* Review Modal */}
+        <ReviewModal
+          visible={showReviewModal}
+          onClose={() => setShowReviewModal(false)}
+          productId={product.id}
+          productName={productName}
+          onReviewSubmitted={handleReviewSubmitted}
+        />
       </SafeAreaView>
     </>
   );
@@ -651,5 +691,16 @@ const styles = StyleSheet.create({
   },
   buyNowButton: {
     flex: 1,
+  },
+  reviewsSection: {
+    borderTopWidth: 8,
+    borderTopColor: colors.gray[100],
+  },
+  reviewsSectionTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: colors.gray[900],
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
   },
 });
