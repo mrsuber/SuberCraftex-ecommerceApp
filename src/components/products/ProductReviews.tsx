@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -42,6 +42,26 @@ interface ProductReviewsProps {
   onWriteReview: () => void;
 }
 
+// Helper to normalize review data (handle both camelCase and snake_case from API)
+function normalizeReview(review: any): Review {
+  return {
+    id: review.id,
+    rating: review.rating,
+    title: review.title || null,
+    content: review.content || null,
+    images: review.images || [],
+    verifiedPurchase: review.verifiedPurchase ?? review.verified_purchase ?? false,
+    helpfulCount: review.helpfulCount ?? review.helpful_count ?? 0,
+    adminResponse: review.adminResponse ?? review.admin_response ?? null,
+    adminRespondedAt: review.adminRespondedAt ?? review.admin_responded_at ?? null,
+    createdAt: review.createdAt ?? review.created_at ?? new Date().toISOString(),
+    user: {
+      fullName: review.user?.fullName ?? review.user?.full_name ?? 'Customer',
+      avatarUrl: review.user?.avatarUrl ?? review.user?.avatar_url ?? null,
+    },
+  };
+}
+
 export function ProductReviews({
   productId,
   reviews,
@@ -52,14 +72,24 @@ export function ProductReviews({
 }: ProductReviewsProps) {
   const { isAuthenticated } = useAuthStore();
   const [votedReviews, setVotedReviews] = useState<Set<string>>(new Set());
-  const [localReviews, setLocalReviews] = useState(reviews);
+  const [localReviews, setLocalReviews] = useState<Review[]>([]);
 
-  // Calculate rating distribution
+  // Sync localReviews with reviews prop and normalize data
+  useEffect(() => {
+    if (reviews && reviews.length > 0) {
+      const normalized = reviews.map(normalizeReview);
+      setLocalReviews(normalized);
+    } else {
+      setLocalReviews([]);
+    }
+  }, [reviews]);
+
+  // Calculate rating distribution using localReviews
   const ratingDistribution = [5, 4, 3, 2, 1].map((rating) => ({
     stars: rating,
-    count: reviews.filter((r) => r.rating === rating).length,
-    percentage: reviewCount > 0
-      ? (reviews.filter((r) => r.rating === rating).length / reviewCount) * 100
+    count: localReviews.filter((r) => r.rating === rating).length,
+    percentage: localReviews.length > 0
+      ? (localReviews.filter((r) => r.rating === rating).length / localReviews.length) * 100
       : 0,
   }));
 
