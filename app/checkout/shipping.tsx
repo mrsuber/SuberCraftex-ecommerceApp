@@ -115,7 +115,12 @@ export default function ShippingScreen() {
       setSelectedAddress(response.data);
       setShowAddressForm(false);
       reset();
-      Alert.alert('Success', 'Address saved successfully');
+      Alert.alert('Success', 'Address saved successfully', [
+        {
+          text: 'OK',
+          onPress: () => router.back(), // Go back to checkout
+        },
+      ]);
     } catch (error: any) {
       console.error('Error creating address:', error);
       console.error('Error response:', error.response?.data);
@@ -191,36 +196,44 @@ export default function ShippingScreen() {
             <Text style={styles.sectionTitle}>Shipping Address</Text>
 
             {/* Saved Addresses */}
-            {addresses.map((address) => (
-              <TouchableOpacity
-                key={address.id}
-                style={[
-                  styles.addressCard,
-                  selectedAddress?.id === address.id && styles.addressCardSelected,
-                ]}
-                onPress={() => {
-                  setSelectedAddress(address);
-                  setShowAddressForm(false);
-                }}
-              >
-                <View style={styles.addressContent}>
-                  <Text style={styles.addressName}>{address.full_name}</Text>
-                  <Text style={styles.addressText}>
-                    {address.address_line1}
-                    {address.address_line2 ? `, ${address.address_line2}` : ''}
-                  </Text>
-                  <Text style={styles.addressText}>
-                    {address.city}, {address.state} {address.postal_code}
-                  </Text>
-                  <Text style={styles.addressText}>{address.phone}</Text>
-                </View>
-                {selectedAddress?.id === address.id && (
-                  <View style={styles.checkIcon}>
-                    <Check size={20} color={colors.white} />
+            {addresses.map((address: any) => {
+              // Handle both camelCase (from API) and snake_case field names
+              const fullName = address.fullName || address.full_name;
+              const addressLine1 = address.addressLine1 || address.address_line1;
+              const addressLine2 = address.addressLine2 || address.address_line2;
+              const postalCode = address.postalCode || address.postal_code;
+
+              return (
+                <TouchableOpacity
+                  key={address.id}
+                  style={[
+                    styles.addressCard,
+                    selectedAddress?.id === address.id && styles.addressCardSelected,
+                  ]}
+                  onPress={() => {
+                    setSelectedAddress(address);
+                    setShowAddressForm(false);
+                  }}
+                >
+                  <View style={styles.addressContent}>
+                    <Text style={styles.addressName}>{fullName}</Text>
+                    <Text style={styles.addressText}>
+                      {addressLine1}
+                      {addressLine2 ? `, ${addressLine2}` : ''}
+                    </Text>
+                    <Text style={styles.addressText}>
+                      {address.city}, {address.state} {postalCode}
+                    </Text>
+                    <Text style={styles.addressText}>{address.phone}</Text>
                   </View>
-                )}
-              </TouchableOpacity>
-            ))}
+                  {selectedAddress?.id === address.id && (
+                    <View style={styles.checkIcon}>
+                      <Check size={20} color={colors.white} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
 
             {/* Add New Address Button */}
             {!showAddressForm && (
