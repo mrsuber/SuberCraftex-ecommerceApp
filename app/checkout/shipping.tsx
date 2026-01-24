@@ -6,10 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -61,18 +62,32 @@ const SHIPPING_OPTIONS: { method: ShippingMethod; label: string; description: st
 
 export default function ShippingScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { getTotalPrice } = useCartStore();
   const [selectedAddress, setSelectedAddress] = useState<SavedAddress | null>(null);
   const [selectedMethod, setSelectedMethod] = useState<ShippingMethod>('standard');
   const [showAddressForm, setShowAddressForm] = useState(false);
 
-  const { data: addresses = [], isLoading: addressesLoading } = useQuery({
+  const { data: addresses = [], isLoading: addressesLoading, refetch } = useQuery({
     queryKey: ['addresses'],
     queryFn: async () => {
+      console.log('Fetching addresses...');
       const response = await apiClient.get(API_ENDPOINTS.addresses.list);
+      console.log('Addresses response:', response.data);
       return response.data as SavedAddress[];
     },
+    staleTime: 0, // Always fetch fresh data
+    refetchOnMount: true,
   });
+
+  // Auto-select first address if available and none selected
+  React.useEffect(() => {
+    if (addresses.length > 0 && !selectedAddress) {
+      // Find default address or use first one
+      const defaultAddr = addresses.find((a: any) => a.isDefault || a.is_default);
+      setSelectedAddress(defaultAddr || addresses[0]);
+    }
+  }, [addresses]);
 
   const {
     control,
@@ -112,15 +127,17 @@ export default function ShippingScreen() {
       console.log('Creating address with data:', data);
       const response = await apiClient.post(API_ENDPOINTS.addresses.create, data);
       console.log('Address created:', response.data);
+
+      // Invalidate and refetch addresses
+      await queryClient.invalidateQueries({ queryKey: ['addresses'] });
+      await refetch();
+
+      // Set the newly created address as selected
       setSelectedAddress(response.data);
       setShowAddressForm(false);
       reset();
-      Alert.alert('Success', 'Address saved successfully', [
-        {
-          text: 'OK',
-          onPress: () => router.back(), // Go back to checkout
-        },
-      ]);
+
+      Alert.alert('Success', 'Address saved successfully');
     } catch (error: any) {
       console.error('Error creating address:', error);
       console.error('Error response:', error.response?.data);
@@ -195,8 +212,25 @@ export default function ShippingScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Shipping Address</Text>
 
+            {/* Loading State */}
+            {addressesLoading && (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={colors.primary.DEFAULT} />
+                <Text style={styles.loadingText}>Loading addresses...</Text>
+              </View>
+            )}
+
+            {/* No Addresses Message */}
+            {!addressesLoading && addresses.length === 0 && !showAddressForm && (
+              <View style={styles.noAddressContainer}>
+                <MapPin size={32} color={colors.gray[400]} />
+                <Text style={styles.noAddressText}>No saved addresses</Text>
+                <Text style={styles.noAddressSubtext}>Add a new address to continue</Text>
+              </View>
+            )}
+
             {/* Saved Addresses */}
-            {addresses.map((address: any) => {
+            {!addressesLoading && addresses.map((address: any) => {
               // Handle both camelCase (from API) and snake_case field names
               const fullName = address.fullName || address.full_name;
               const addressLine1 = address.addressLine1 || address.address_line1;
@@ -600,5 +634,36 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderTopWidth: 1,
     borderTopColor: colors.gray[200],
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  loadingText: {
+    fontSize: fontSize.sm,
+    color: colors.gray[500],
+  },
+  noAddressContainer: {
+    alignItems: 'center',
+    padding: spacing.xl,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.gray[200],
+    marginBottom: spacing.md,
+  },
+  noAddressText: {
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.medium,
+    color: colors.gray[600],
+    marginTop: spacing.sm,
+  },
+  noAddressSubtext: {
+    fontSize: fontSize.sm,
+    color: colors.gray[400],
+    marginTop: spacing.xs,
   },
 });
