@@ -402,6 +402,7 @@ export default function ProductDetailScreen() {
               reviews={(product as any).reviews || []}
               avgRating={(product as any).avgRating || 0}
               reviewCount={(product as any).reviewCount || 0}
+              userHasReviewed={(product as any).userHasReviewed || false}
               onWriteReview={handleWriteReview}
             />
           </View>

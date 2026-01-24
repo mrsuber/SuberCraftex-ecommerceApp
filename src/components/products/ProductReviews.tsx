@@ -38,6 +38,7 @@ interface ProductReviewsProps {
   reviews: Review[];
   avgRating: number;
   reviewCount: number;
+  userHasReviewed: boolean;
   onWriteReview: () => void;
 }
 
@@ -46,6 +47,7 @@ export function ProductReviews({
   reviews,
   avgRating,
   reviewCount,
+  userHasReviewed,
   onWriteReview,
 }: ProductReviewsProps) {
   const { isAuthenticated } = useAuthStore();
@@ -136,15 +138,23 @@ export function ProductReviews({
         </View>
 
         {/* Write Review Button */}
-        <TouchableOpacity
-          style={styles.writeReviewButton}
-          onPress={onWriteReview}
-        >
-          <Edit3 size={18} color={colors.white} />
-          <Text style={styles.writeReviewText}>
-            {isAuthenticated ? 'Write a Review' : 'Log in to Review'}
-          </Text>
-        </TouchableOpacity>
+        {userHasReviewed ? (
+          <View style={styles.alreadyReviewedContainer}>
+            <Text style={styles.alreadyReviewedText}>
+              You've already reviewed this product
+            </Text>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={styles.writeReviewButton}
+            onPress={onWriteReview}
+          >
+            <Edit3 size={18} color={colors.white} />
+            <Text style={styles.writeReviewText}>
+              {isAuthenticated ? 'Write a Review' : 'Log in to Review'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Reviews List */}
@@ -356,6 +366,18 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: fontSize.base,
     fontWeight: fontWeight.semibold,
+  },
+  alreadyReviewedContainer: {
+    backgroundColor: colors.gray[100],
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+  },
+  alreadyReviewedText: {
+    color: colors.gray[600],
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
   },
   emptyState: {
     alignItems: 'center',

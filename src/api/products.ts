@@ -50,7 +50,7 @@ export const productsApi = {
     return response.data;
   },
 
-  async getById(id: string): Promise<Product & { reviews?: any[]; avgRating?: number; reviewCount?: number }> {
+  async getById(id: string): Promise<Product & { reviews?: any[]; avgRating?: number; reviewCount?: number; userHasReviewed?: boolean }> {
     const endpoint = API_ENDPOINTS.products.detail(id);
     console.log('=== Product API Call ===');
     console.log('Fetching product from:', endpoint);
@@ -77,6 +77,7 @@ export const productsApi = {
     const reviews = data.reviews || [];
     const avgRating = data.avgRating ?? 0;
     const reviewCount = data.reviewCount ?? 0;
+    const userHasReviewed = data.userHasReviewed ?? false;
 
     console.log('Extracted product type:', typeof product);
     console.log('Extracted product keys:', product ? Object.keys(product) : 'null');
@@ -102,6 +103,7 @@ export const productsApi = {
       reviews,
       avgRating,
       reviewCount,
+      userHasReviewed,
     };
   },
 
