@@ -7,6 +7,9 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,7 +17,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { MapPin, Plus, Edit2, Trash2, Check } from 'lucide-react-native';
+import { MapPin, Plus, Edit2, Trash2 } from 'lucide-react-native';
 import { Button, Input, Card, CardContent, Badge } from '@/components/ui';
 import { apiClient } from '@/api/client';
 import { API_ENDPOINTS } from '@/config/api';
@@ -23,15 +26,14 @@ import type { SavedAddress } from '@/types';
 
 const addressSchema = z.object({
   label: z.string().optional(),
-  full_name: z.string().min(2, 'Name is required'),
+  fullName: z.string().min(2, 'Name is required'),
   phone: z.string().min(10, 'Valid phone is required'),
-  address_line1: z.string().min(5, 'Address is required'),
-  address_line2: z.string().optional(),
+  addressLine1: z.string().min(5, 'Address is required'),
+  addressLine2: z.string().optional(),
   city: z.string().min(2, 'City is required'),
   state: z.string().min(2, 'State is required'),
-  postal_code: z.string().min(4, 'Postal code is required'),
+  postalCode: z.string().min(4, 'Postal code is required'),
   country: z.string().min(1, 'Country is required'),
-  is_default: z.boolean(),
 });
 
 type AddressFormData = z.infer<typeof addressSchema>;
@@ -58,8 +60,15 @@ export default function AddressesScreen() {
   } = useForm<AddressFormData>({
     resolver: zodResolver(addressSchema),
     defaultValues: {
+      label: '',
+      fullName: '',
+      phone: '',
+      addressLine1: '',
+      addressLine2: '',
+      city: '',
+      state: '',
+      postalCode: '',
       country: 'Nigeria',
-      is_default: false,
     },
   });
 
@@ -112,15 +121,14 @@ export default function AddressesScreen() {
   const handleEdit = (address: SavedAddress) => {
     setEditingAddress(address);
     setValue('label', address.label || '');
-    setValue('full_name', address.full_name);
+    setValue('fullName', address.fullName);
     setValue('phone', address.phone);
-    setValue('address_line1', address.address_line1);
-    setValue('address_line2', address.address_line2 || '');
+    setValue('addressLine1', address.addressLine1);
+    setValue('addressLine2', address.addressLine2 || '');
     setValue('city', address.city);
     setValue('state', address.state);
-    setValue('postal_code', address.postal_code);
+    setValue('postalCode', address.postalCode);
     setValue('country', address.country);
-    setValue('is_default', address.is_default);
     setShowForm(true);
   };
 
@@ -153,7 +161,7 @@ export default function AddressesScreen() {
         <View style={styles.addressHeader}>
           <View style={styles.addressLabelRow}>
             {item.label && <Text style={styles.addressLabel}>{item.label}</Text>}
-            {item.is_default && <Badge label="Default" variant="success" size="sm" />}
+            {item.isDefault && <Badge label="Default" variant="success" size="sm" />}
           </View>
           <View style={styles.addressActions}>
             <TouchableOpacity onPress={() => handleEdit(item)} style={styles.actionButton}>
@@ -164,11 +172,11 @@ export default function AddressesScreen() {
             </TouchableOpacity>
           </View>
         </View>
-        <Text style={styles.addressName}>{item.full_name}</Text>
-        <Text style={styles.addressText}>{item.address_line1}</Text>
-        {item.address_line2 && <Text style={styles.addressText}>{item.address_line2}</Text>}
+        <Text style={styles.addressName}>{item.fullName}</Text>
+        <Text style={styles.addressText}>{item.addressLine1}</Text>
+        {item.addressLine2 && <Text style={styles.addressText}>{item.addressLine2}</Text>}
         <Text style={styles.addressText}>
-          {item.city}, {item.state} {item.postal_code}
+          {item.city}, {item.state} {item.postalCode}
         </Text>
         <Text style={styles.addressPhone}>{item.phone}</Text>
       </CardContent>
@@ -176,177 +184,177 @@ export default function AddressesScreen() {
   );
 
   const renderForm = () => (
-    <View style={styles.formContainer}>
-      <Text style={styles.formTitle}>
-        {editingAddress ? 'Edit Address' : 'Add New Address'}
-      </Text>
-
-      <Controller
-        control={control}
-        name="label"
-        render={({ field: { onChange, value } }) => (
-          <Input
-            label="Label (e.g., Home, Work)"
-            placeholder="Home"
-            value={value}
-            onChangeText={onChange}
-            error={errors.label?.message}
-          />
-        )}
-      />
-
-      <Controller
-        control={control}
-        name="full_name"
-        render={({ field: { onChange, value } }) => (
-          <Input
-            label="Full Name"
-            placeholder="Enter full name"
-            value={value}
-            onChangeText={onChange}
-            error={errors.full_name?.message}
-          />
-        )}
-      />
-
-      <Controller
-        control={control}
-        name="phone"
-        render={({ field: { onChange, value } }) => (
-          <Input
-            label="Phone Number"
-            placeholder="+234 800 000 0000"
-            keyboardType="phone-pad"
-            value={value}
-            onChangeText={onChange}
-            error={errors.phone?.message}
-          />
-        )}
-      />
-
-      <Controller
-        control={control}
-        name="address_line1"
-        render={({ field: { onChange, value } }) => (
-          <Input
-            label="Address Line 1"
-            placeholder="Street address"
-            value={value}
-            onChangeText={onChange}
-            error={errors.address_line1?.message}
-          />
-        )}
-      />
-
-      <Controller
-        control={control}
-        name="address_line2"
-        render={({ field: { onChange, value } }) => (
-          <Input
-            label="Address Line 2 (Optional)"
-            placeholder="Apartment, suite, etc."
-            value={value}
-            onChangeText={onChange}
-          />
-        )}
-      />
-
-      <View style={styles.row}>
-        <View style={styles.halfInput}>
-          <Controller
-            control={control}
-            name="city"
-            render={({ field: { onChange, value } }) => (
-              <Input
-                label="City"
-                placeholder="City"
-                value={value}
-                onChangeText={onChange}
-                error={errors.city?.message}
-              />
-            )}
-          />
-        </View>
-        <View style={styles.halfInput}>
-          <Controller
-            control={control}
-            name="state"
-            render={({ field: { onChange, value } }) => (
-              <Input
-                label="State"
-                placeholder="State"
-                value={value}
-                onChangeText={onChange}
-                error={errors.state?.message}
-              />
-            )}
-          />
-        </View>
-      </View>
-
-      <View style={styles.row}>
-        <View style={styles.halfInput}>
-          <Controller
-            control={control}
-            name="postal_code"
-            render={({ field: { onChange, value } }) => (
-              <Input
-                label="Postal Code"
-                placeholder="100001"
-                keyboardType="numeric"
-                value={value}
-                onChangeText={onChange}
-                error={errors.postal_code?.message}
-              />
-            )}
-          />
-        </View>
-        <View style={styles.halfInput}>
-          <Controller
-            control={control}
-            name="country"
-            render={({ field: { onChange, value } }) => (
-              <Input
-                label="Country"
-                placeholder="Nigeria"
-                value={value}
-                onChangeText={onChange}
-                error={errors.country?.message}
-              />
-            )}
-          />
-        </View>
-      </View>
-
-      <TouchableOpacity
-        style={styles.defaultToggle}
-        onPress={() => setValue('is_default', !control._formValues.is_default)}
+    <KeyboardAvoidingView
+      style={styles.formWrapper}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView
+        style={styles.formScrollView}
+        contentContainerStyle={styles.formContainer}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <View style={[styles.checkbox, control._formValues.is_default && styles.checkboxChecked]}>
-          {control._formValues.is_default && <Check size={14} color={colors.white} />}
-        </View>
-        <Text style={styles.defaultText}>Set as default address</Text>
-      </TouchableOpacity>
+        <Text style={styles.formTitle}>
+          {editingAddress ? 'Edit Address' : 'Add New Address'}
+        </Text>
 
-      <View style={styles.formActions}>
-        <Button
-          title="Cancel"
-          variant="outline"
-          onPress={() => {
-            setShowForm(false);
-            setEditingAddress(null);
-            reset();
-          }}
-          style={styles.cancelButton}
+        <Controller
+          control={control}
+          name="label"
+          render={({ field: { onChange, value } }) => (
+            <Input
+              label="Label (e.g., Home, Work)"
+              placeholder="Home"
+              value={value}
+              onChangeText={onChange}
+              error={errors.label?.message}
+            />
+          )}
         />
-        <Button
-          title={editingAddress ? 'Update' : 'Save'}
-          onPress={handleSubmit(onSubmit)}
-          loading={createMutation.isPending || updateMutation.isPending}
-          style={styles.saveButton}
+
+        <Controller
+          control={control}
+          name="full_name"
+          render={({ field: { onChange, value } }) => (
+            <Input
+              label="Full Name"
+              placeholder="Enter full name"
+              value={value}
+              onChangeText={onChange}
+              error={errors.full_name?.message}
+            />
+          )}
         />
-      </View>
-    </View>
+
+        <Controller
+          control={control}
+          name="phone"
+          render={({ field: { onChange, value } }) => (
+            <Input
+              label="Phone Number"
+              placeholder="+234 800 000 0000"
+              keyboardType="phone-pad"
+              value={value}
+              onChangeText={onChange}
+              error={errors.phone?.message}
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="address_line1"
+          render={({ field: { onChange, value } }) => (
+            <Input
+              label="Address Line 1"
+              placeholder="Street address"
+              value={value}
+              onChangeText={onChange}
+              error={errors.address_line1?.message}
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="address_line2"
+          render={({ field: { onChange, value } }) => (
+            <Input
+              label="Address Line 2 (Optional)"
+              placeholder="Apartment, suite, etc."
+              value={value}
+              onChangeText={onChange}
+            />
+          )}
+        />
+
+        <View style={styles.row}>
+          <View style={styles.halfInput}>
+            <Controller
+              control={control}
+              name="city"
+              render={({ field: { onChange, value } }) => (
+                <Input
+                  label="City"
+                  placeholder="City"
+                  value={value}
+                  onChangeText={onChange}
+                  error={errors.city?.message}
+                />
+              )}
+            />
+          </View>
+          <View style={styles.halfInput}>
+            <Controller
+              control={control}
+              name="state"
+              render={({ field: { onChange, value } }) => (
+                <Input
+                  label="State"
+                  placeholder="State"
+                  value={value}
+                  onChangeText={onChange}
+                  error={errors.state?.message}
+                />
+              )}
+            />
+          </View>
+        </View>
+
+        <View style={styles.row}>
+          <View style={styles.halfInput}>
+            <Controller
+              control={control}
+              name="postal_code"
+              render={({ field: { onChange, value } }) => (
+                <Input
+                  label="Postal Code"
+                  placeholder="100001"
+                  keyboardType="numeric"
+                  value={value}
+                  onChangeText={onChange}
+                  error={errors.postal_code?.message}
+                />
+              )}
+            />
+          </View>
+          <View style={styles.halfInput}>
+            <Controller
+              control={control}
+              name="country"
+              render={({ field: { onChange, value } }) => (
+                <Input
+                  label="Country"
+                  placeholder="Nigeria"
+                  value={value}
+                  onChangeText={onChange}
+                  error={errors.country?.message}
+                />
+              )}
+            />
+          </View>
+        </View>
+
+        <View style={styles.formActions}>
+          <Button
+            title="Cancel"
+            variant="outline"
+            onPress={() => {
+              setShowForm(false);
+              setEditingAddress(null);
+              reset();
+            }}
+            style={styles.cancelButton}
+          />
+          <Button
+            title={editingAddress ? 'Update' : 'Save'}
+            onPress={handleSubmit(onSubmit)}
+            loading={createMutation.isPending || updateMutation.isPending}
+            style={styles.saveButton}
+          />
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 
   const renderEmpty = () => (
@@ -380,7 +388,11 @@ export default function AddressesScreen() {
             <View style={styles.bottomAction}>
               <Button
                 title="Add New Address"
-                onPress={() => setShowForm(true)}
+                onPress={() => {
+                  reset();
+                  setEditingAddress(null);
+                  setShowForm(true);
+                }}
                 fullWidth
               />
             </View>
@@ -450,9 +462,15 @@ const styles = StyleSheet.create({
     color: colors.gray[500],
     marginTop: spacing.sm,
   },
-  formContainer: {
+  formWrapper: {
     flex: 1,
+  },
+  formScrollView: {
+    flex: 1,
+  },
+  formContainer: {
     padding: spacing.lg,
+    paddingBottom: spacing.xl * 2,
   },
   formTitle: {
     fontSize: fontSize.lg,
@@ -466,29 +484,6 @@ const styles = StyleSheet.create({
   },
   halfInput: {
     flex: 1,
-  },
-  defaultToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginVertical: spacing.md,
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: borderRadius.sm,
-    borderWidth: 2,
-    borderColor: colors.gray[300],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: colors.primary.DEFAULT,
-    borderColor: colors.primary.DEFAULT,
-  },
-  defaultText: {
-    fontSize: fontSize.sm,
-    color: colors.gray[700],
   },
   formActions: {
     flexDirection: 'row',

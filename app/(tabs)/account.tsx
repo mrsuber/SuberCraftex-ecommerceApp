@@ -21,6 +21,7 @@ import {
   ChevronRight,
   Shield,
   Scissors,
+  Truck,
 } from 'lucide-react-native';
 import { Card, CardContent, Button } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth-store';
@@ -157,6 +158,21 @@ export default function AccountScreen() {
                 title="Tailor Dashboard"
                 subtitle="Manage bookings and progress updates"
                 onPress={() => router.push('/(tailor)')}
+              />
+            </Card>
+          </View>
+        )}
+
+        {/* Driver Portal - Only show for drivers */}
+        {user?.role === 'driver' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Driver Portal</Text>
+            <Card variant="outlined">
+              <MenuItem
+                icon={<Truck size={22} color={colors.primary.DEFAULT} />}
+                title="Delivery Management"
+                subtitle="View and manage delivery orders"
+                onPress={() => router.push('/delivery')}
               />
             </Card>
           </View>

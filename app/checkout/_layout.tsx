@@ -16,9 +16,16 @@ export default function CheckoutLayout() {
       }}
     >
       <Stack.Screen
+        name="index"
+        options={{
+          headerTitle: 'Checkout',
+          presentation: 'card',
+        }}
+      />
+      <Stack.Screen
         name="shipping"
         options={{
-          headerTitle: 'Shipping',
+          headerTitle: 'Add Address',
           presentation: 'card',
         }}
       />

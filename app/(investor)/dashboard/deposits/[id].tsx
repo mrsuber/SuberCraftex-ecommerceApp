@@ -77,8 +77,14 @@ export default function DepositConfirmationScreen() {
     );
   }
 
+  // Helper to access deposit fields (handles both camelCase API and snake_case types)
+  const dep = deposit as any;
+  const confirmationStatus = dep.confirmationStatus || dep.confirmation_status;
+  const grossAmount = dep.grossAmount || dep.gross_amount;
+  const depositedAt = dep.depositedAt || dep.deposited_at;
+
   const getStatusIcon = () => {
-    switch (deposit.confirmation_status) {
+    switch (confirmationStatus) {
       case 'confirmed':
         return <CheckCircle size={48} color={colors.success} />;
       case 'disputed':
@@ -91,7 +97,7 @@ export default function DepositConfirmationScreen() {
   };
 
   const getStatusLabel = () => {
-    switch (deposit.confirmation_status) {
+    switch (confirmationStatus) {
       case 'confirmed':
         return 'Confirmed';
       case 'disputed':
@@ -99,14 +105,14 @@ export default function DepositConfirmationScreen() {
       case 'pending_confirmation':
         return 'Pending Confirmation';
       default:
-        return deposit.confirmation_status;
+        return confirmationStatus;
     }
   };
 
   const handleConfirm = () => {
     Alert.alert(
       'Confirm Deposit',
-      `Are you sure you want to confirm this deposit of ${formatCurrency(parseFloat(deposit.gross_amount))}?`,
+      `Are you sure you want to confirm this deposit of ${formatCurrency(parseFloat(grossAmount))}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -137,7 +143,7 @@ export default function DepositConfirmationScreen() {
     );
   };
 
-  const isPending = deposit.confirmation_status === 'pending_confirmation';
+  const isPending = confirmationStatus === 'pending_confirmation';
 
   return (
     <>
@@ -148,7 +154,7 @@ export default function DepositConfirmationScreen() {
           <View style={styles.statusSection}>
             {getStatusIcon()}
             <Text style={styles.statusLabel}>{getStatusLabel()}</Text>
-            <Text style={styles.depositNumber}>#{deposit.deposit_number}</Text>
+            <Text style={styles.depositNumber}>#{dep.depositNumber || dep.deposit_number}</Text>
           </View>
 
           {/* Amount Details */}
@@ -158,19 +164,19 @@ export default function DepositConfirmationScreen() {
                 <View style={styles.amountRow}>
                   <Text style={styles.amountLabel}>Gross Amount</Text>
                   <Text style={styles.grossAmount}>
-                    {formatCurrency(parseFloat(deposit.gross_amount))}
+                    {formatCurrency(parseFloat(grossAmount))}
                   </Text>
                 </View>
                 <View style={styles.amountRow}>
-                  <Text style={styles.amountLabel}>Admin Fee ({deposit.admin_fee_percentage}%)</Text>
+                  <Text style={styles.amountLabel}>Admin Fee ({dep.adminFeePercentage || dep.admin_fee_percentage}%)</Text>
                   <Text style={styles.feeAmount}>
-                    -{formatCurrency(parseFloat(deposit.admin_fee_amount))}
+                    -{formatCurrency(parseFloat(dep.adminFeeAmount || dep.admin_fee_amount))}
                   </Text>
                 </View>
                 <View style={[styles.amountRow, styles.netRow]}>
                   <Text style={styles.netLabel}>Net Amount</Text>
                   <Text style={styles.netAmount}>
-                    {formatCurrency(parseFloat(deposit.net_amount))}
+                    {formatCurrency(parseFloat(dep.netAmount || dep.net_amount))}
                   </Text>
                 </View>
               </CardContent>
@@ -185,19 +191,19 @@ export default function DepositConfirmationScreen() {
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Deposit Date</Text>
                   <Text style={styles.infoValue}>
-                    {formatDateTime(deposit.deposited_at)}
+                    {formatDateTime(depositedAt)}
                   </Text>
                 </View>
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Payment Method</Text>
                   <Text style={styles.infoValue}>
-                    {deposit.payment_method?.replace('_', ' ').toUpperCase() || 'N/A'}
+                    {(dep.paymentMethod || dep.payment_method)?.replace('_', ' ').toUpperCase() || 'N/A'}
                   </Text>
                 </View>
-                {deposit.reference_number && (
+                {(dep.referenceNumber || dep.reference_number) && (
                   <View style={styles.infoRow}>
                     <Text style={styles.infoLabel}>Reference</Text>
-                    <Text style={styles.infoValue}>{deposit.reference_number}</Text>
+                    <Text style={styles.infoValue}>{dep.referenceNumber || dep.reference_number}</Text>
                   </View>
                 )}
                 {deposit.notes && (
@@ -211,13 +217,13 @@ export default function DepositConfirmationScreen() {
           </View>
 
           {/* Receipt Image */}
-          {(deposit.receipt_image || deposit.receipt_url) && (
+          {(dep.receiptImage || dep.receipt_image || dep.receiptUrl || dep.receipt_url) && (
             <View style={styles.section}>
               <Card variant="outlined">
                 <CardHeader title="Receipt" />
                 <CardContent>
                   <Image
-                    source={{ uri: getImageUrl(deposit.receipt_image || deposit.receipt_url) }}
+                    source={{ uri: getImageUrl(dep.receiptImage || dep.receipt_image || dep.receiptUrl || dep.receipt_url) }}
                     style={styles.receiptImage}
                     resizeMode="contain"
                   />
@@ -249,7 +255,7 @@ export default function DepositConfirmationScreen() {
           )}
 
           {/* Confirmation History */}
-          {deposit.confirmed_at && (
+          {(dep.confirmedAt || dep.confirmed_at) && (
             <View style={styles.section}>
               <Card variant="outlined">
                 <CardHeader title="Confirmation History" />
@@ -257,13 +263,13 @@ export default function DepositConfirmationScreen() {
                   <View style={styles.infoRow}>
                     <Text style={styles.infoLabel}>Confirmed At</Text>
                     <Text style={styles.infoValue}>
-                      {formatDateTime(deposit.confirmed_at)}
+                      {formatDateTime(dep.confirmedAt || dep.confirmed_at)}
                     </Text>
                   </View>
-                  {deposit.investor_feedback && (
+                  {(dep.investorFeedback || dep.investor_feedback) && (
                     <View style={styles.notesSection}>
                       <Text style={styles.infoLabel}>Your Feedback</Text>
-                      <Text style={styles.notesText}>{deposit.investor_feedback}</Text>
+                      <Text style={styles.notesText}>{dep.investorFeedback || dep.investor_feedback}</Text>
                     </View>
                   )}
                 </CardContent>

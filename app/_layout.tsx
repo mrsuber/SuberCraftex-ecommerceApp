@@ -22,7 +22,7 @@ const queryClient = new QueryClient({
 });
 
 function AuthRedirect() {
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const { isAuthenticated, isLoading, user } = useAuthStore();
   const segments = useSegments();
   const router = useRouter();
 
@@ -30,16 +30,27 @@ function AuthRedirect() {
     if (isLoading) return;
 
     const inAuthGroup = segments[0] === '(auth)';
+    const inTailorGroup = segments[0] === '(tailor)';
     const inInvestorGroup = segments[0] === '(investor)';
 
     if (!isAuthenticated && !inAuthGroup) {
       // Redirect to login if not authenticated and not in auth group
       router.replace('/(auth)/login');
     } else if (isAuthenticated && inAuthGroup) {
-      // Redirect to main app if authenticated and in auth group
-      router.replace('/(tabs)');
+      // Redirect based on user role after login
+      const role = user?.role;
+
+      if (role === 'tailor') {
+        router.replace('/(tailor)');
+      } else if (role === 'investor') {
+        router.replace('/(investor)');
+      } else {
+        // Drivers, customers, admins all go to main tabs
+        // Drivers will see "Delivery Management" option in Account screen
+        router.replace('/(tabs)');
+      }
     }
-  }, [isAuthenticated, isLoading, segments]);
+  }, [isAuthenticated, isLoading, segments, user]);
 
   return null;
 }
@@ -97,11 +108,33 @@ function RootLayoutNav() {
           }}
         />
         <Stack.Screen
+          name="addresses"
+          options={{
+            headerShown: true,
+            headerTitle: 'Addresses',
+            headerBackTitle: 'Back',
+          }}
+        />
+        <Stack.Screen
+          name="bookings/index"
+          options={{
+            headerShown: true,
+            headerTitle: 'My Bookings',
+            headerBackTitle: 'Back',
+          }}
+        />
+        <Stack.Screen
           name="bookings/[id]"
           options={{
             headerShown: true,
             headerTitle: 'Booking Details',
             headerBackTitle: 'Back',
+          }}
+        />
+        <Stack.Screen
+          name="delivery"
+          options={{
+            headerShown: false,
           }}
         />
         <Stack.Screen name="(tailor)" options={{ headerShown: false }} />

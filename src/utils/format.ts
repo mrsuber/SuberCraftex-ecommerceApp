@@ -44,10 +44,12 @@ export function formatCurrency(
  * Format a date string
  */
 export function formatDate(
-  date: string | Date,
+  date: string | Date | null | undefined,
   options?: Intl.DateTimeFormatOptions
 ): string {
+  if (!date) return 'N/A';
   const dateObj = typeof date === 'string' ? new Date(date) : date;
+  if (isNaN(dateObj.getTime())) return 'N/A';
   return dateObj.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
@@ -59,8 +61,10 @@ export function formatDate(
 /**
  * Format a date with time
  */
-export function formatDateTime(date: string | Date): string {
+export function formatDateTime(date: string | Date | null | undefined): string {
+  if (!date) return 'N/A';
   const dateObj = typeof date === 'string' ? new Date(date) : date;
+  if (isNaN(dateObj.getTime())) return 'N/A';
   return dateObj.toLocaleString('en-US', {
     year: 'numeric',
     month: 'short',
@@ -73,8 +77,10 @@ export function formatDateTime(date: string | Date): string {
 /**
  * Format relative time (e.g., "2 hours ago")
  */
-export function formatRelativeTime(date: string | Date): string {
+export function formatRelativeTime(date: string | Date | null | undefined): string {
+  if (!date) return 'N/A';
   const dateObj = typeof date === 'string' ? new Date(date) : date;
+  if (isNaN(dateObj.getTime())) return 'N/A';
   const now = new Date();
   const diffMs = now.getTime() - dateObj.getTime();
   const diffSecs = Math.floor(diffMs / 1000);

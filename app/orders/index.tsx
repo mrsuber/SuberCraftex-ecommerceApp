@@ -12,14 +12,25 @@ import {
 import { useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
-import { Package, ChevronRight } from 'lucide-react-native';
+import { Package, ChevronRight, ChevronLeft, Calendar, ShoppingBag } from 'lucide-react-native';
 import { Badge, Card, CardContent } from '@/components/ui';
 import { apiClient } from '@/api/client';
 import { API_ENDPOINTS } from '@/config/api';
 import { formatCurrency, formatDate } from '@/utils/format';
 import { getStatusBadgeVariant, formatStatusLabel } from '@/components/ui/Badge';
-import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/config/theme';
+import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/config/theme';
 import type { Order } from '@/types';
+
+// Helper to get short order number (last 8 chars)
+const getShortOrderNumber = (orderNumber: string): string => {
+  if (!orderNumber) return 'N/A';
+  // If it's a long format like ORD-1234567890-ABCDEF, show last part
+  const parts = orderNumber.split('-');
+  if (parts.length >= 2) {
+    return parts[parts.length - 1];
+  }
+  return orderNumber.slice(-8).toUpperCase();
+};
 
 export default function OrdersScreen() {
   const router = useRouter();
@@ -33,73 +44,94 @@ export default function OrdersScreen() {
     queryKey: ['orders'],
     queryFn: async () => {
       const response = await apiClient.get(API_ENDPOINTS.orders.list);
-      return response.data as Order[];
+      // API returns { orders: [...] }
+      return (response.data.orders || response.data || []) as Order[];
     },
   });
 
   const renderOrder = ({ item }: { item: Order }) => {
-    const firstItem = item.order_items?.[0];
-    const additionalItems = (item.order_items?.length || 1) - 1;
+    // Handle both camelCase (API) and snake_case (types)
+    const ord = item as any;
+    const orderItems = ord.orderItems || ord.order_items || [];
+    const firstItem = orderItems[0];
+    const itemCount = orderItems.reduce((sum: number, i: any) => sum + (i.quantity || 1), 0);
+    const orderNumber = ord.orderNumber || ord.order_number || '';
+    const createdAt = ord.createdAt || ord.created_at;
+    const orderStatus = ord.orderStatus || ord.status || ord.order_status || 'pending';
+    const totalAmount = ord.totalAmount || ord.total_amount || 0;
 
     return (
-      <Card
+      <TouchableOpacity
         style={styles.orderCard}
-        variant="outlined"
+        activeOpacity={0.7}
         onPress={() => router.push(`/orders/${item.id}`)}
       >
-        <CardContent style={styles.orderContent}>
-          <View style={styles.orderHeader}>
-            <View>
-              <Text style={styles.orderNumber}>Order #{item.order_number}</Text>
-              <Text style={styles.orderDate}>{formatDate(item.created_at)}</Text>
-            </View>
-            <Badge
-              label={formatStatusLabel(item.status)}
-              variant={getStatusBadgeVariant(item.status)}
-            />
+        {/* Status Badge - Top Right Corner */}
+        <View style={styles.badgeContainer}>
+          <Badge
+            label={formatStatusLabel(orderStatus)}
+            variant={getStatusBadgeVariant(orderStatus)}
+            size="sm"
+          />
+        </View>
+
+        {/* Order Info Row */}
+        <View style={styles.orderHeader}>
+          <View style={styles.orderIconContainer}>
+            <ShoppingBag size={20} color={colors.primary.DEFAULT} />
           </View>
-
-          {firstItem && (
-            <View style={styles.orderItem}>
-              <View style={styles.itemImage}>
-                {firstItem.product_image ? (
-                  <Image
-                    source={{ uri: firstItem.product_image }}
-                    style={styles.productImage}
-                  />
-                ) : (
-                  <View style={styles.imagePlaceholder}>
-                    <Package size={24} color={colors.gray[300]} />
-                  </View>
-                )}
-              </View>
-              <View style={styles.itemInfo}>
-                <Text style={styles.itemName} numberOfLines={1}>
-                  {firstItem.product_name}
-                </Text>
-                <Text style={styles.itemDetails}>
-                  {formatCurrency(firstItem.price)} × {firstItem.quantity}
-                </Text>
-                {additionalItems > 0 && (
-                  <Text style={styles.moreItems}>
-                    +{additionalItems} more item{additionalItems > 1 ? 's' : ''}
-                  </Text>
-                )}
-              </View>
+          <View style={styles.orderInfo}>
+            <Text style={styles.orderNumber} numberOfLines={1}>
+              #{getShortOrderNumber(orderNumber)}
+            </Text>
+            <View style={styles.dateRow}>
+              <Calendar size={12} color={colors.gray[400]} />
+              <Text style={styles.orderDate}>{formatDate(createdAt)}</Text>
             </View>
-          )}
+          </View>
+        </View>
 
-          <View style={styles.orderFooter}>
-            <View>
-              <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>
-                {formatCurrency(item.total_amount)}
+        {/* Product Preview */}
+        {firstItem && (
+          <View style={styles.orderItem}>
+            <View style={styles.itemImage}>
+              {(firstItem.productImage || firstItem.product_image) ? (
+                <Image
+                  source={{ uri: firstItem.productImage || firstItem.product_image }}
+                  style={styles.productImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={styles.imagePlaceholder}>
+                  <Package size={20} color={colors.gray[400]} />
+                </View>
+              )}
+            </View>
+            <View style={styles.itemInfo}>
+              <Text style={styles.itemName} numberOfLines={2}>
+                {firstItem.productName || firstItem.product_name || 'Product'}
+              </Text>
+              <Text style={styles.itemQuantity}>
+                {itemCount} {itemCount === 1 ? 'item' : 'items'}
               </Text>
             </View>
-            <ChevronRight size={20} color={colors.gray[400]} />
           </View>
-        </CardContent>
-      </Card>
+        )}
+
+        {/* Footer with Total */}
+        <View style={styles.orderFooter}>
+          <View>
+            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalValue}>
+              {formatCurrency(totalAmount)}
+            </Text>
+          </View>
+          <View style={styles.viewDetails}>
+            <Text style={styles.viewDetailsText}>View Details</Text>
+            <ChevronRight size={16} color={colors.primary.DEFAULT} />
+          </View>
+        </View>
+      </TouchableOpacity>
     );
   };
 
@@ -118,7 +150,19 @@ export default function OrdersScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ headerTitle: 'My Orders' }} />
+      <Stack.Screen
+        options={{
+          headerTitle: 'My Orders',
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={{ marginLeft: spacing.sm, padding: spacing.xs }}
+            >
+              <ChevronLeft size={24} color={colors.gray[900]} />
+            </TouchableOpacity>
+          ),
+        }}
+      />
       <SafeAreaView style={styles.container} edges={['bottom']}>
         {isLoading ? (
           <View style={styles.loaderContainer}>
@@ -150,7 +194,7 @@ export default function OrdersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.gray[50],
+    backgroundColor: colors.gray[100],
   },
   loaderContainer: {
     flex: 1,
@@ -158,43 +202,71 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   listContent: {
-    padding: spacing.lg,
+    padding: spacing.md,
+    paddingBottom: spacing.xl,
   },
   orderCard: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.lg,
     marginBottom: spacing.md,
-  },
-  orderContent: {
     padding: spacing.md,
+    ...shadows.sm,
+    position: 'relative',
+  },
+  badgeContainer: {
+    position: 'absolute',
+    top: spacing.md,
+    right: spacing.md,
+    zIndex: 1,
   },
   orderHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: spacing.md,
+    paddingRight: 80, // Space for badge
+  },
+  orderIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.primary[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  orderInfo: {
+    flex: 1,
   },
   orderNumber: {
     fontSize: fontSize.base,
-    fontWeight: fontWeight.semibold,
+    fontWeight: fontWeight.bold,
     color: colors.gray[900],
   },
-  orderDate: {
-    fontSize: fontSize.sm,
-    color: colors.gray[500],
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginTop: 2,
+    gap: 4,
+  },
+  orderDate: {
+    fontSize: fontSize.xs,
+    color: colors.gray[500],
   },
   orderItem: {
     flexDirection: 'row',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: colors.gray[50],
+    borderRadius: borderRadius.md,
     marginBottom: spacing.md,
-    paddingBottom: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray[100],
   },
   itemImage: {
-    width: 60,
-    height: 60,
-    borderRadius: borderRadius.md,
+    width: 50,
+    height: 50,
+    borderRadius: borderRadius.sm,
     overflow: 'hidden',
-    marginRight: spacing.md,
+    marginRight: spacing.sm,
+    backgroundColor: colors.white,
   },
   productImage: {
     width: '100%',
@@ -203,7 +275,7 @@ const styles = StyleSheet.create({
   imagePlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: colors.gray[100],
+    backgroundColor: colors.gray[200],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -214,31 +286,41 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
-    color: colors.gray[900],
+    color: colors.gray[800],
+    lineHeight: 18,
   },
-  itemDetails: {
-    fontSize: fontSize.sm,
+  itemQuantity: {
+    fontSize: fontSize.xs,
     color: colors.gray[500],
     marginTop: 2,
-  },
-  moreItems: {
-    fontSize: fontSize.xs,
-    color: colors.primary.DEFAULT,
-    marginTop: 4,
   },
   orderFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.gray[100],
   },
   totalLabel: {
     fontSize: fontSize.xs,
     color: colors.gray[500],
+    marginBottom: 2,
   },
   totalValue: {
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
+    fontWeight: fontWeight.bold,
     color: colors.gray[900],
+  },
+  viewDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  viewDetailsText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: colors.primary.DEFAULT,
   },
   emptyContainer: {
     flex: 1,

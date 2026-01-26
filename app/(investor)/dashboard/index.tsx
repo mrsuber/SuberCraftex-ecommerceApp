@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,8 @@ import {
   Clock,
   ChevronRight,
   AlertCircle,
+  FileText,
+  Home,
 } from 'lucide-react-native';
 import { Button, Badge, Card, CardContent, CardHeader } from '@/components/ui';
 import { apiClient } from '@/api/client';
@@ -44,7 +46,16 @@ export default function InvestorDashboardScreen() {
       const response = await apiClient.get(API_ENDPOINTS.investor.me);
       return response.data as Investor;
     },
+    // Always refetch on mount to ensure fresh data (especially after accepting agreement)
+    refetchOnMount: 'always',
   });
+
+  // Check if agreement is accepted, redirect if not
+  useEffect(() => {
+    if (investor && !investor.agreementAccepted) {
+      router.replace('/(investor)/agreement');
+    }
+  }, [investor]);
 
   if (isLoading) {
     return (
@@ -66,12 +77,24 @@ export default function InvestorDashboardScreen() {
     );
   }
 
-  const cashBalance = parseFloat(investor.cash_balance);
-  const profitBalance = parseFloat(investor.profit_balance);
+  // Show loading while redirecting to agreement
+  if (!investor.agreementAccepted) {
+    return (
+      <View style={styles.loaderContainer}>
+        <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
+        <Text style={styles.redirectText}>Redirecting to agreement...</Text>
+      </View>
+    );
+  }
+
+  // Handle both camelCase (API response) and snake_case (type definitions)
+  const inv = investor as any;
+  const cashBalance = parseFloat(inv.cashBalance || inv.cash_balance || '0');
+  const profitBalance = parseFloat(inv.profitBalance || inv.profit_balance || '0');
   const totalBalance = cashBalance + profitBalance;
 
   const pendingDeposits = investor.deposits?.filter(
-    (d) => d.confirmation_status === 'pending_confirmation'
+    (d: any) => (d.confirmationStatus || d.confirmation_status) === 'pending_confirmation'
   ) || [];
 
   const recentTransactions = investor.transactions?.slice(0, 5) || [];
@@ -92,6 +115,14 @@ export default function InvestorDashboardScreen() {
         options={{
           headerShown: true,
           headerTitle: 'Investor Dashboard',
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => router.replace('/(tabs)')}
+              style={styles.headerButton}
+            >
+              <Home size={22} color={colors.gray[700]} />
+            </TouchableOpacity>
+          ),
           headerRight: () => (
             <TouchableOpacity
               onPress={() => router.push('/(investor)/dashboard/settings')}
@@ -115,17 +146,17 @@ export default function InvestorDashboardScreen() {
           }
         >
           {/* KYC Status Banner */}
-          {investor.kyc_status !== 'approved' && (
+          {(inv.kycStatus || inv.kyc_status) !== 'approved' && (
             <View style={styles.kycBanner}>
               <AlertCircle size={20} color={colors.warning} />
               <Text style={styles.kycBannerText}>
-                {investor.kyc_status === 'pending'
+                {(inv.kycStatus || inv.kyc_status) === 'pending'
                   ? 'Your KYC is under review'
-                  : investor.kyc_status === 'rejected'
+                  : (inv.kycStatus || inv.kyc_status) === 'rejected'
                   ? 'KYC rejected. Please resubmit.'
                   : 'Complete KYC to start investing'}
               </Text>
-              {investor.kyc_status !== 'pending' && (
+              {(inv.kycStatus || inv.kyc_status) !== 'pending' && (
                 <Button
                   title="Verify"
                   size="sm"
@@ -168,7 +199,7 @@ export default function InvestorDashboardScreen() {
               <Card style={styles.statCard} variant="outlined">
                 <CardContent style={styles.statContent}>
                   <Text style={styles.statValue}>
-                    {formatCurrency(parseFloat(investor.total_invested))}
+                    {formatCurrency(parseFloat(inv.totalInvested || inv.total_invested || '0'))}
                   </Text>
                   <Text style={styles.statLabel}>Total Invested</Text>
                 </CardContent>
@@ -176,7 +207,7 @@ export default function InvestorDashboardScreen() {
               <Card style={styles.statCard} variant="outlined">
                 <CardContent style={styles.statContent}>
                   <Text style={[styles.statValue, { color: colors.success }]}>
-                    {formatCurrency(parseFloat(investor.total_profit))}
+                    {formatCurrency(parseFloat(inv.totalProfit || inv.total_profit || '0'))}
                   </Text>
                   <Text style={styles.statLabel}>Total Profit</Text>
                 </CardContent>
@@ -200,10 +231,10 @@ export default function InvestorDashboardScreen() {
                   <CardContent style={styles.depositContent}>
                     <View style={styles.depositInfo}>
                       <Text style={styles.depositAmount}>
-                        {formatCurrency(parseFloat(deposit.gross_amount))}
+                        {formatCurrency(parseFloat((deposit as any).grossAmount || deposit.gross_amount))}
                       </Text>
                       <Text style={styles.depositDate}>
-                        {formatDate(deposit.deposited_at)}
+                        {formatDate((deposit as any).depositedAt || deposit.deposited_at)}
                       </Text>
                     </View>
                     <View style={styles.depositAction}>
@@ -222,21 +253,12 @@ export default function InvestorDashboardScreen() {
             <View style={styles.actionsGrid}>
               <TouchableOpacity
                 style={styles.actionButton}
-                onPress={() => router.push('/(investor)/dashboard/products')}
+                onPress={() => router.push('/(investor)/dashboard/deposits')}
               >
-                <View style={styles.actionIcon}>
-                  <Package size={24} color={colors.primary.DEFAULT} />
+                <View style={[styles.actionIcon, { backgroundColor: colors.success + '20' }]}>
+                  <ArrowDownRight size={24} color={colors.success} />
                 </View>
-                <Text style={styles.actionLabel}>Products</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => router.push('/(investor)/dashboard/equipment')}
-              >
-                <View style={styles.actionIcon}>
-                  <SettingsIcon size={24} color={colors.primary.DEFAULT} />
-                </View>
-                <Text style={styles.actionLabel}>Equipment</Text>
+                <Text style={styles.actionLabel}>Deposit</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.actionButton}
@@ -246,6 +268,15 @@ export default function InvestorDashboardScreen() {
                   <ArrowUpRight size={24} color={colors.primary.DEFAULT} />
                 </View>
                 <Text style={styles.actionLabel}>Withdraw</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => router.push('/(investor)/dashboard/products')}
+              >
+                <View style={styles.actionIcon}>
+                  <Package size={24} color={colors.primary.DEFAULT} />
+                </View>
+                <Text style={styles.actionLabel}>Products</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.actionButton}
@@ -288,7 +319,7 @@ export default function InvestorDashboardScreen() {
                         {transaction.description}
                       </Text>
                       <Text style={styles.transactionDate}>
-                        {formatDate(transaction.created_at)}
+                        {formatDate((transaction as any).createdAt || transaction.created_at)}
                       </Text>
                     </View>
                     <Text
@@ -331,6 +362,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.white,
+  },
+  redirectText: {
+    marginTop: spacing.md,
+    fontSize: fontSize.base,
+    color: colors.gray[600],
   },
   errorContainer: {
     flex: 1,

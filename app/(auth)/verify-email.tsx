@@ -7,65 +7,17 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Mail, RefreshCw } from 'lucide-react-native';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Button, Input } from '@/components/ui';
+import { Mail, RefreshCw, CheckCircle } from 'lucide-react-native';
+import { Button } from '@/components/ui';
 import { authApi } from '@/api/auth';
 import { colors, spacing, fontSize, fontWeight } from '@/config/theme';
-
-const verifySchema = z.object({
-  code: z.string().length(6, 'Verification code must be 6 digits'),
-});
-
-type VerifyFormData = z.infer<typeof verifySchema>;
 
 export default function VerifyEmailScreen() {
   const router = useRouter();
   const { email } = useLocalSearchParams<{ email: string }>();
-  const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
 
-  const {
-    control,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<VerifyFormData>({
-    resolver: zodResolver(verifySchema),
-    defaultValues: {
-      code: '',
-    },
-  });
-
-  const onSubmit = async (data: VerifyFormData) => {
-    if (!email) {
-      Alert.alert('Error', 'Email address is missing. Please try again.');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      await authApi.verifyEmail(email, data.code);
-      Alert.alert(
-        'Email Verified',
-        'Your email has been verified successfully. You can now log in.',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/(auth)/login'),
-          },
-        ]
-      );
-    } catch (error: any) {
-      const message = error.response?.data?.error || 'Verification failed. Please try again.';
-      Alert.alert('Verification Failed', message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleResendCode = async () => {
+  const handleResendEmail = async () => {
     if (!email) {
       Alert.alert('Error', 'Email address is missing. Please try again.');
       return;
@@ -74,9 +26,9 @@ export default function VerifyEmailScreen() {
     setIsResending(true);
     try {
       await authApi.resendVerification(email);
-      Alert.alert('Code Sent', 'A new verification code has been sent to your email.');
+      Alert.alert('Email Sent', 'A new verification link has been sent to your email.');
     } catch (error: any) {
-      const message = error.response?.data?.error || 'Failed to resend code. Please try again.';
+      const message = error.response?.data?.error || 'Failed to resend email. Please try again.';
       Alert.alert('Error', message);
     } finally {
       setIsResending(false);
@@ -87,62 +39,60 @@ export default function VerifyEmailScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <View style={styles.iconContainer}>
-          <Mail size={48} color={colors.primary.DEFAULT} />
+          <Mail size={64} color={colors.primary.DEFAULT} />
         </View>
 
         <View style={styles.header}>
-          <Text style={styles.title}>Verify Your Email</Text>
+          <Text style={styles.title}>Check Your Email</Text>
           <Text style={styles.subtitle}>
-            We've sent a verification code to
+            We've sent a verification link to
           </Text>
           <Text style={styles.email}>{email || 'your email'}</Text>
         </View>
 
-        <View style={styles.form}>
-          <Controller
-            control={control}
-            name="code"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <Input
-                label="Verification Code"
-                placeholder="Enter 6-digit code"
-                keyboardType="number-pad"
-                maxLength={6}
-                value={value}
-                onChangeText={onChange}
-                onBlur={onBlur}
-                error={errors.code?.message}
-              />
-            )}
-          />
-
-          <Button
-            title="Verify Email"
-            onPress={handleSubmit(onSubmit)}
-            loading={isLoading}
-            fullWidth
-            size="lg"
-          />
+        <View style={styles.instructionsContainer}>
+          <View style={styles.instructionItem}>
+            <CheckCircle size={20} color={colors.success.DEFAULT} />
+            <Text style={styles.instructionText}>
+              Open the email we sent you
+            </Text>
+          </View>
+          <View style={styles.instructionItem}>
+            <CheckCircle size={20} color={colors.success.DEFAULT} />
+            <Text style={styles.instructionText}>
+              Click the verification link
+            </Text>
+          </View>
+          <View style={styles.instructionItem}>
+            <CheckCircle size={20} color={colors.success.DEFAULT} />
+            <Text style={styles.instructionText}>
+              Come back here and sign in
+            </Text>
+          </View>
         </View>
 
+        <Button
+          title="Go to Sign In"
+          onPress={() => router.replace('/(auth)/login')}
+          fullWidth
+          size="lg"
+        />
+
         <View style={styles.resendContainer}>
-          <Text style={styles.resendText}>Didn't receive the code? </Text>
+          <Text style={styles.resendText}>Didn't receive the email? </Text>
           <Button
-            title="Resend Code"
+            title="Resend Email"
             variant="ghost"
             size="sm"
             loading={isResending}
             leftIcon={<RefreshCw size={16} color={colors.primary.DEFAULT} />}
-            onPress={handleResendCode}
+            onPress={handleResendEmail}
           />
         </View>
 
-        <Button
-          title="Back to Login"
-          variant="outline"
-          onPress={() => router.replace('/(auth)/login')}
-          style={styles.backButton}
-        />
+        <Text style={styles.spamNote}>
+          Check your spam folder if you don't see the email in your inbox.
+        </Text>
       </View>
     </SafeAreaView>
   );
@@ -164,7 +114,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: spacing.xl * 1.5,
+    marginBottom: spacing.xl,
   },
   title: {
     fontSize: fontSize['2xl'],
@@ -183,20 +133,36 @@ const styles = StyleSheet.create({
     color: colors.gray[900],
     marginTop: spacing.xs,
   },
-  form: {
-    marginBottom: spacing.lg,
+  instructionsContainer: {
+    backgroundColor: colors.gray[50],
+    borderRadius: 12,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
+  },
+  instructionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  instructionText: {
+    fontSize: fontSize.base,
+    color: colors.gray[700],
+    marginLeft: spacing.md,
   },
   resendContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.xl,
+    marginTop: spacing.xl,
   },
   resendText: {
     fontSize: fontSize.sm,
     color: colors.gray[600],
   },
-  backButton: {
-    marginTop: spacing.md,
+  spamNote: {
+    fontSize: fontSize.sm,
+    color: colors.gray[500],
+    textAlign: 'center',
+    marginTop: spacing.lg,
   },
 });

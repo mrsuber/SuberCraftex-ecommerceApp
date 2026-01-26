@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,12 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, Upload, User, CreditCard, Check } from 'lucide-react-native';
+import { Camera, Upload, User, CreditCard, Check, Clock, XCircle, CheckCircle } from 'lucide-react-native';
 import { Button, Input, Card, CardContent } from '@/components/ui';
 import { apiClient, uploadFile } from '@/api/client';
 import { API_ENDPOINTS } from '@/config/api';
@@ -19,9 +20,21 @@ import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/config/th
 
 type DocumentType = 'id_front' | 'id_back' | 'selfie';
 
+type KycStatus = 'not_started' | 'pending' | 'approved' | 'rejected';
+
+interface KycStatusData {
+  kycStatus: KycStatus;
+  kycSubmittedAt: string | null;
+  kycRejectionReason: string | null;
+  isVerified: boolean;
+  agreementAccepted?: boolean;
+}
+
 export default function KycVerifyScreen() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [isFetchingStatus, setIsFetchingStatus] = useState(true);
+  const [kycStatusData, setKycStatusData] = useState<KycStatusData | null>(null);
   const [idType, setIdType] = useState<string>('national_id');
   const [idNumber, setIdNumber] = useState('');
   const [documents, setDocuments] = useState<Record<DocumentType, string | null>>({
@@ -36,6 +49,27 @@ export default function KycVerifyScreen() {
     { value: 'drivers_license', label: "Driver's License" },
     { value: 'voters_card', label: "Voter's Card" },
   ];
+
+  useEffect(() => {
+    fetchKycStatus();
+  }, []);
+
+  const fetchKycStatus = async () => {
+    try {
+      const response = await apiClient.get(API_ENDPOINTS.investor.kyc);
+      setKycStatusData(response.data);
+    } catch (error: any) {
+      // If 404 or error, assume not started
+      setKycStatusData({
+        kycStatus: 'not_started',
+        kycSubmittedAt: null,
+        kycRejectionReason: null,
+        isVerified: false,
+      });
+    } finally {
+      setIsFetchingStatus(false);
+    }
+  };
 
   const pickImage = async (type: DocumentType, useCamera: boolean = false) => {
     try {
@@ -125,13 +159,13 @@ export default function KycVerifyScreen() {
 
       Alert.alert(
         'KYC Submitted',
-        'Your verification documents have been submitted. We will review them and notify you once approved.',
-        [{ text: 'OK', onPress: () => router.push('/(investor)/agreement') }]
+        'Your verification documents have been submitted. Please proceed to accept the investment agreement.',
+        [{ text: 'Continue', onPress: () => router.push('/(investor)/agreement') }]
       );
     } catch (error: any) {
       Alert.alert(
         'Submission Failed',
-        error.message || 'Failed to submit KYC documents. Please try again.'
+        error.response?.data?.error || error.message || 'Failed to submit KYC documents. Please try again.'
       );
     } finally {
       setIsLoading(false);
@@ -186,6 +220,165 @@ export default function KycVerifyScreen() {
     </View>
   );
 
+  // Show loading while fetching status
+  if (isFetchingStatus) {
+    return (
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Show status screen if KYC is already submitted (pending or approved)
+  if (kycStatusData?.kycStatus === 'pending' || kycStatusData?.kycStatus === 'approved') {
+    const isPending = kycStatusData.kycStatus === 'pending';
+
+    return (
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <View style={styles.statusContainer}>
+          <View style={[styles.statusIconContainer, isPending ? styles.statusPending : styles.statusApproved]}>
+            {isPending ? (
+              <Clock size={48} color={colors.warning.DEFAULT} />
+            ) : (
+              <CheckCircle size={48} color={colors.success.DEFAULT} />
+            )}
+          </View>
+
+          <Text style={styles.statusTitle}>
+            {isPending ? 'KYC Under Review' : 'KYC Approved'}
+          </Text>
+
+          <Text style={styles.statusDescription}>
+            {isPending
+              ? 'Your identity verification documents have been submitted and are currently under review. This usually takes 24-48 hours.'
+              : 'Your identity has been verified successfully. You can now proceed to accept the investment agreement.'}
+          </Text>
+
+          {kycStatusData.kycSubmittedAt && (
+            <Text style={styles.statusDate}>
+              Submitted: {new Date(kycStatusData.kycSubmittedAt).toLocaleDateString()}
+            </Text>
+          )}
+
+          <View style={styles.statusActions}>
+            <Button
+              title="Continue to Agreement"
+              onPress={() => router.push('/(investor)/agreement')}
+              fullWidth
+              size="lg"
+            />
+
+            <Button
+              title="Go to Dashboard"
+              variant="outline"
+              onPress={() => router.replace('/(investor)/dashboard')}
+              fullWidth
+              size="lg"
+              style={{ marginTop: spacing.md }}
+            />
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Show rejection status with option to resubmit
+  if (kycStatusData?.kycStatus === 'rejected') {
+    return (
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <View style={styles.rejectionContainer}>
+            <View style={[styles.statusIconContainer, styles.statusRejected]}>
+              <XCircle size={48} color={colors.error.DEFAULT} />
+            </View>
+
+            <Text style={styles.statusTitle}>KYC Verification Rejected</Text>
+
+            <Text style={styles.statusDescription}>
+              Unfortunately, your identity verification was not approved. Please review the reason below and submit again.
+            </Text>
+
+            {kycStatusData.kycRejectionReason && (
+              <View style={styles.rejectionReasonBox}>
+                <Text style={styles.rejectionReasonLabel}>Reason:</Text>
+                <Text style={styles.rejectionReasonText}>
+                  {kycStatusData.kycRejectionReason}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Show the form again for resubmission */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Resubmit Documents</Text>
+            <View style={styles.idTypeGrid}>
+              {ID_TYPES.map((type) => (
+                <TouchableOpacity
+                  key={type.value}
+                  style={[
+                    styles.idTypeButton,
+                    idType === type.value && styles.idTypeButtonSelected,
+                  ]}
+                  onPress={() => setIdType(type.value)}
+                >
+                  <CreditCard
+                    size={20}
+                    color={
+                      idType === type.value
+                        ? colors.primary.DEFAULT
+                        : colors.gray[500]
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.idTypeLabel,
+                      idType === type.value && styles.idTypeLabelSelected,
+                    ]}
+                  >
+                    {type.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <Input
+              label="ID Number"
+              placeholder="Enter your ID number"
+              value={idNumber}
+              onChangeText={setIdNumber}
+            />
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Upload Documents</Text>
+            {renderDocumentUpload('id_front', 'Front of ID', <CreditCard size={20} color={colors.gray[500]} />)}
+            {renderDocumentUpload('id_back', 'Back of ID', <CreditCard size={20} color={colors.gray[500]} />, false)}
+            {renderDocumentUpload('selfie', 'Selfie with ID', <User size={20} color={colors.gray[500]} />)}
+            <Text style={styles.selfieHint}>
+              Hold your ID next to your face and take a clear selfie. Make sure both your face and the ID are visible.
+            </Text>
+          </View>
+        </ScrollView>
+
+        <View style={styles.bottomAction}>
+          <Button
+            title="Resubmit for Verification"
+            onPress={handleSubmit}
+            loading={isLoading}
+            fullWidth
+            size="lg"
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Default: Show KYC form for first-time submission
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -292,6 +485,87 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.gray[50],
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: spacing.md,
+    fontSize: fontSize.base,
+    color: colors.gray[600],
+  },
+  statusContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+  },
+  statusIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  statusPending: {
+    backgroundColor: colors.warning[50],
+  },
+  statusApproved: {
+    backgroundColor: colors.success[50],
+  },
+  statusRejected: {
+    backgroundColor: colors.error[50],
+  },
+  statusTitle: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
+    color: colors.gray[900],
+    marginBottom: spacing.md,
+    textAlign: 'center',
+  },
+  statusDescription: {
+    fontSize: fontSize.base,
+    color: colors.gray[600],
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: spacing.md,
+  },
+  statusDate: {
+    fontSize: fontSize.sm,
+    color: colors.gray[500],
+    marginBottom: spacing.xl,
+  },
+  statusActions: {
+    width: '100%',
+    marginTop: spacing.lg,
+  },
+  rejectionContainer: {
+    alignItems: 'center',
+    padding: spacing.xl,
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray[200],
+  },
+  rejectionReasonBox: {
+    width: '100%',
+    backgroundColor: colors.error[50],
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginTop: spacing.md,
+  },
+  rejectionReasonLabel: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.error.DEFAULT,
+    marginBottom: spacing.xs,
+  },
+  rejectionReasonText: {
+    fontSize: fontSize.sm,
+    color: colors.error.DEFAULT,
+    lineHeight: 20,
+  },
   instructions: {
     backgroundColor: colors.white,
     padding: spacing.lg,
@@ -358,7 +632,7 @@ const styles = StyleSheet.create({
     color: colors.gray[700],
   },
   required: {
-    color: colors.error,
+    color: colors.error.DEFAULT,
   },
   uploadActions: {
     flexDirection: 'row',
@@ -398,7 +672,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.success,
+    backgroundColor: colors.success.DEFAULT,
     alignItems: 'center',
     justifyContent: 'center',
   },

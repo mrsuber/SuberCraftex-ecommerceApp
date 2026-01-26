@@ -102,10 +102,15 @@ export default function WithdrawalsScreen() {
     );
   }
 
+  // Helper to get balance handling both camelCase (API) and snake_case (types)
+  const getBalance = (key: 'cash_balance' | 'profit_balance'): number => {
+    const inv = investor as any;
+    const camelKey = key === 'cash_balance' ? 'cashBalance' : 'profitBalance';
+    return parseFloat(inv?.[camelKey] || inv?.[key] || '0');
+  };
+
   const selectedOption = WITHDRAWAL_OPTIONS.find((o) => o.type === selectedType);
-  const availableBalance = selectedOption
-    ? parseFloat(investor?.[selectedOption.balanceKey] || '0')
-    : 0;
+  const availableBalance = selectedOption ? getBalance(selectedOption.balanceKey) : 0;
 
   const handleWithdraw = () => {
     const numAmount = parseFloat(amount);
@@ -151,7 +156,7 @@ export default function WithdrawalsScreen() {
                   <Wallet size={20} color={colors.primary.DEFAULT} />
                   <Text style={styles.balanceLabel}>Cash Balance</Text>
                   <Text style={styles.balanceValue}>
-                    {formatCurrency(parseFloat(investor?.cash_balance || '0'))}
+                    {formatCurrency(parseFloat((investor as any)?.cashBalance || investor?.cash_balance || '0'))}
                   </Text>
                 </View>
                 <View style={styles.balanceDivider} />
@@ -159,7 +164,7 @@ export default function WithdrawalsScreen() {
                   <TrendingUp size={20} color={colors.success} />
                   <Text style={styles.balanceLabel}>Profit Balance</Text>
                   <Text style={styles.balanceValue}>
-                    {formatCurrency(parseFloat(investor?.profit_balance || '0'))}
+                    {formatCurrency(parseFloat((investor as any)?.profitBalance || investor?.profit_balance || '0'))}
                   </Text>
                 </View>
               </CardContent>
@@ -171,7 +176,7 @@ export default function WithdrawalsScreen() {
             <Text style={styles.sectionTitle}>Withdrawal Type</Text>
             {WITHDRAWAL_OPTIONS.map((option) => {
               const Icon = option.icon;
-              const balance = parseFloat(investor?.[option.balanceKey] || '0');
+              const balance = getBalance(option.balanceKey);
 
               return (
                 <TouchableOpacity

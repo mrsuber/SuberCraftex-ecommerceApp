@@ -74,7 +74,7 @@ export default function CartScreen() {
       );
       return;
     }
-    router.push('/checkout/shipping');
+    router.push('/checkout');
   };
 
   const renderCartItem = ({ item }: { item: any }) => (

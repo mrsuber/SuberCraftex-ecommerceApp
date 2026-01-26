@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,21 +11,22 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { CreditCard, Smartphone, Building, ArrowLeft } from 'lucide-react-native';
-import { Button, Card, CardContent, Input } from '@/components/ui';
+import { Button, Card, CardContent } from '@/components/ui';
 import { apiClient } from '@/api/client';
 import { API_ENDPOINTS } from '@/config/api';
 import { useCartStore } from '@/stores/cart-store';
 import { formatCurrency } from '@/utils/format';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/config/theme';
-import type { PaymentMethod } from '@/types';
+import type { PaymentMethod, SavedAddress } from '@/types';
 
 type PaymentOption = {
   method: PaymentMethod;
   label: string;
   description: string;
   icon: any;
+  comingSoon?: boolean;
 };
 
 const PAYMENT_OPTIONS: PaymentOption[] = [
@@ -34,12 +35,14 @@ const PAYMENT_OPTIONS: PaymentOption[] = [
     label: 'Credit/Debit Card',
     description: 'Pay with Visa, Mastercard, or Verve',
     icon: CreditCard,
+    comingSoon: true,
   },
   {
     method: 'mobile_payment',
     label: 'Mobile Money',
     description: 'Pay with MTN MoMo, Airtel Money, etc.',
     icon: Smartphone,
+    comingSoon: true,
   },
   {
     method: 'cash',
@@ -58,41 +61,89 @@ export default function PaymentScreen() {
   }>();
 
   const { items, getTotalPrice, clearCart } = useCartStore();
-  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('card');
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('cash');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [shippingAddress, setShippingAddress] = useState<any>(null);
 
   const subtotal = getTotalPrice();
   const shippingCost = parseFloat(params.shippingCost || '0');
-  const total = subtotal + shippingCost;
+  const taxAmount = 0; // Could calculate tax here if needed
+  const total = subtotal + shippingCost + taxAmount;
+
+  // Fetch address details
+  const { data: addresses = [] } = useQuery({
+    queryKey: ['addresses'],
+    queryFn: async () => {
+      const response = await apiClient.get(API_ENDPOINTS.addresses.list);
+      return response.data as SavedAddress[];
+    },
+  });
+
+  // Find the selected address when addresses load
+  useEffect(() => {
+    if (addresses.length > 0 && params.addressId) {
+      const address = addresses.find((a: any) => a.id === params.addressId);
+      if (address) {
+        // Normalize the address fields (handle both camelCase and snake_case)
+        setShippingAddress({
+          fullName: address.fullName || (address as any).full_name,
+          phone: address.phone,
+          email: (address as any).email || '',
+          addressLine1: address.addressLine1 || (address as any).address_line1,
+          addressLine2: address.addressLine2 || (address as any).address_line2 || '',
+          city: address.city,
+          state: address.state,
+          postalCode: address.postalCode || (address as any).postal_code,
+          country: address.country,
+        });
+      }
+    }
+  }, [addresses, params.addressId]);
 
   const createOrderMutation = useMutation({
     mutationFn: async () => {
+      if (!shippingAddress) {
+        throw new Error('Shipping address is required');
+      }
+
+      // Format order data according to API requirements
       const orderData = {
         items: items.map((item) => ({
-          productId: item.productId,
-          variantId: item.variantId,
+          id: item.productId,
+          name: item.name,
+          sku: (item as any).sku || 'N/A',
+          image: item.image,
+          price: item.price,
           quantity: item.quantity,
         })),
-        shippingAddressId: params.addressId,
-        shippingMethod: params.shippingMethod,
+        shippingAddress: shippingAddress,
+        billingAddress: shippingAddress, // Use shipping as billing for now
+        shippingMethod: params.shippingMethod || 'standard',
         paymentMethod: selectedMethod,
+        subtotal: subtotal,
+        shippingCost: shippingCost,
+        taxAmount: taxAmount,
+        totalAmount: total,
       };
 
       const response = await apiClient.post(API_ENDPOINTS.orders.create, orderData);
       return response.data;
     },
-    onSuccess: (order) => {
+    onSuccess: (data) => {
       clearCart();
       router.replace({
         pathname: '/checkout/confirmation',
-        params: { orderId: order.id, orderNumber: order.order_number },
+        params: {
+          orderId: data.order?.id || data.id,
+          orderNumber: data.order?.orderNumber || data.order_number || data.orderNumber
+        },
       });
     },
     onError: (error: any) => {
       setIsProcessing(false);
       Alert.alert(
         'Order Failed',
-        error.response?.data?.error || 'Failed to place order. Please try again.'
+        error.response?.data?.error || error.message || 'Failed to place order. Please try again.'
       );
     },
   });
@@ -103,29 +154,16 @@ export default function PaymentScreen() {
       return;
     }
 
+    if (!shippingAddress) {
+      Alert.alert('Address Required', 'Please wait for the address to load or go back and select an address.');
+      return;
+    }
+
     setIsProcessing(true);
 
-    if (selectedMethod === 'card') {
-      // For card payments, we would integrate with Stripe here
-      // For now, simulate a successful payment
-      try {
-        // Create payment intent
-        const response = await apiClient.post(API_ENDPOINTS.payments.createIntent, {
-          amount: total,
-          currency: 'ngn',
-        });
-
-        // In a real app, you would use Stripe SDK to confirm the payment
-        // For demo, we'll just create the order
-        createOrderMutation.mutate();
-      } catch (error: any) {
-        setIsProcessing(false);
-        Alert.alert('Payment Failed', 'Could not process card payment.');
-      }
-    } else {
-      // For other payment methods, create order directly
-      createOrderMutation.mutate();
-    }
+    // For Pay on Delivery, create order directly
+    // Card and mobile payments are coming soon
+    createOrderMutation.mutate();
   };
 
   return (
@@ -150,29 +188,50 @@ export default function PaymentScreen() {
           <Text style={styles.sectionTitle}>Payment Method</Text>
           {PAYMENT_OPTIONS.map((option) => {
             const Icon = option.icon;
+            const isDisabled = option.comingSoon;
+            const isSelected = selectedMethod === option.method && !isDisabled;
             return (
               <TouchableOpacity
                 key={option.method}
                 style={[
                   styles.optionCard,
-                  selectedMethod === option.method && styles.optionCardSelected,
+                  isSelected && styles.optionCardSelected,
+                  isDisabled && styles.optionCardDisabled,
                 ]}
-                onPress={() => setSelectedMethod(option.method)}
+                onPress={() => {
+                  if (!isDisabled) {
+                    setSelectedMethod(option.method);
+                  }
+                }}
+                disabled={isDisabled}
+                activeOpacity={isDisabled ? 1 : 0.7}
               >
-                <View style={styles.optionIcon}>
-                  <Icon size={24} color={colors.primary.DEFAULT} />
+                <View style={[styles.optionIcon, isDisabled && styles.optionIconDisabled]}>
+                  <Icon size={24} color={isDisabled ? colors.gray[400] : colors.primary.DEFAULT} />
                 </View>
                 <View style={styles.optionContent}>
-                  <Text style={styles.optionLabel}>{option.label}</Text>
-                  <Text style={styles.optionDescription}>{option.description}</Text>
+                  <View style={styles.optionLabelRow}>
+                    <Text style={[styles.optionLabel, isDisabled && styles.optionLabelDisabled]}>
+                      {option.label}
+                    </Text>
+                    {option.comingSoon && (
+                      <View style={styles.comingSoonBadge}>
+                        <Text style={styles.comingSoonText}>Coming Soon</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={[styles.optionDescription, isDisabled && styles.optionDescriptionDisabled]}>
+                    {option.description}
+                  </Text>
                 </View>
                 <View
                   style={[
                     styles.radioButton,
-                    selectedMethod === option.method && styles.radioButtonSelected,
+                    isSelected && styles.radioButtonSelected,
+                    isDisabled && styles.radioButtonDisabled,
                   ]}
                 >
-                  {selectedMethod === option.method && (
+                  {isSelected && (
                     <View style={styles.radioButtonInner} />
                   )}
                 </View>
@@ -181,46 +240,6 @@ export default function PaymentScreen() {
           })}
         </View>
 
-        {/* Card Details (if card selected) */}
-        {selectedMethod === 'card' && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Card Details</Text>
-            <Card variant="outlined">
-              <CardContent>
-                <Input
-                  label="Card Number"
-                  placeholder="1234 5678 9012 3456"
-                  keyboardType="number-pad"
-                  maxLength={19}
-                />
-                <View style={styles.cardRow}>
-                  <View style={styles.cardHalf}>
-                    <Input
-                      label="Expiry Date"
-                      placeholder="MM/YY"
-                      keyboardType="number-pad"
-                      maxLength={5}
-                    />
-                  </View>
-                  <View style={styles.cardHalf}>
-                    <Input
-                      label="CVV"
-                      placeholder="123"
-                      keyboardType="number-pad"
-                      maxLength={4}
-                      secureTextEntry
-                    />
-                  </View>
-                </View>
-                <Input
-                  label="Cardholder Name"
-                  placeholder="Name on card"
-                  autoCapitalize="characters"
-                />
-              </CardContent>
-            </Card>
-          </View>
-        )}
 
         {/* Order Summary */}
         <View style={styles.section}>
@@ -281,7 +300,13 @@ export default function PaymentScreen() {
           <Text style={styles.bottomTotalValue}>{formatCurrency(total)}</Text>
         </View>
         <Button
-          title={isProcessing ? 'Processing...' : `Pay ${formatCurrency(total)}`}
+          title={
+            isProcessing
+              ? 'Processing...'
+              : selectedMethod === 'cash'
+              ? 'Place Order'
+              : `Pay ${formatCurrency(total)}`
+          }
           onPress={handlePayment}
           loading={isProcessing}
           disabled={isProcessing}
@@ -321,6 +346,11 @@ const styles = StyleSheet.create({
     borderColor: colors.primary.DEFAULT,
     backgroundColor: colors.primary[50],
   },
+  optionCardDisabled: {
+    backgroundColor: colors.gray[50],
+    borderColor: colors.gray[200],
+    opacity: 0.8,
+  },
   optionIcon: {
     width: 48,
     height: 48,
@@ -330,17 +360,42 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: spacing.md,
   },
+  optionIconDisabled: {
+    backgroundColor: colors.gray[100],
+  },
   optionContent: {
     flex: 1,
+  },
+  optionLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   optionLabel: {
     fontSize: fontSize.base,
     fontWeight: fontWeight.medium,
     color: colors.gray[900],
   },
+  optionLabelDisabled: {
+    color: colors.gray[500],
+  },
   optionDescription: {
     fontSize: fontSize.sm,
     color: colors.gray[500],
+  },
+  optionDescriptionDisabled: {
+    color: colors.gray[400],
+  },
+  comingSoonBadge: {
+    backgroundColor: colors.warning + '20',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+  },
+  comingSoonText: {
+    fontSize: 10,
+    fontWeight: fontWeight.semibold,
+    color: colors.warning,
   },
   radioButton: {
     width: 20,
@@ -354,18 +409,15 @@ const styles = StyleSheet.create({
   radioButtonSelected: {
     borderColor: colors.primary.DEFAULT,
   },
+  radioButtonDisabled: {
+    borderColor: colors.gray[300],
+    backgroundColor: colors.gray[100],
+  },
   radioButtonInner: {
     width: 10,
     height: 10,
     borderRadius: 5,
     backgroundColor: colors.primary.DEFAULT,
-  },
-  cardRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  cardHalf: {
-    flex: 1,
   },
   cartItem: {
     flexDirection: 'row',

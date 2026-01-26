@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   Alert,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -56,6 +57,7 @@ export default function InvestorRegisterScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(true);
 
   const {
     control,
@@ -69,6 +71,33 @@ export default function InvestorRegisterScreen() {
       phone: user?.phone || '',
     },
   });
+
+  useEffect(() => {
+    checkInvestorStatus();
+  }, []);
+
+  const checkInvestorStatus = async () => {
+    try {
+      // Try to get investor profile
+      const response = await apiClient.get(API_ENDPOINTS.investor.me);
+      const investor = response.data;
+
+      // User is already an investor, redirect based on their status
+      if (investor.agreementAccepted) {
+        // Agreement accepted, go to dashboard
+        router.replace('/(investor)/dashboard');
+      } else if (investor.kycStatus === 'pending' || investor.kycStatus === 'approved') {
+        // KYC submitted, go to agreement
+        router.replace('/(investor)/agreement');
+      } else {
+        // KYC not started or rejected, go to verify
+        router.replace('/(investor)/verify');
+      }
+    } catch (error: any) {
+      // 401 or 404 means user is not an investor yet, show registration form
+      setIsCheckingStatus(false);
+    }
+  };
 
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true);
@@ -84,6 +113,18 @@ export default function InvestorRegisterScreen() {
       setIsLoading(false);
     }
   };
+
+  // Show loading while checking if user is already an investor
+  if (isCheckingStatus) {
+    return (
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -197,6 +238,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.gray[50],
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: spacing.md,
+    fontSize: fontSize.base,
+    color: colors.gray[600],
   },
   header: {
     alignItems: 'center',

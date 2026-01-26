@@ -79,7 +79,7 @@ export default function TransactionsScreen() {
               {item.description}
             </Text>
             <Text style={styles.transactionDate}>
-              {formatDateTime(item.created_at)}
+              {formatDateTime((item as any).createdAt || item.created_at)}
             </Text>
           </View>
           <View style={styles.transactionAmountContainer}>

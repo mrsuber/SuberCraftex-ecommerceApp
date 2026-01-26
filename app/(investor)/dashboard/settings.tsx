@@ -72,6 +72,11 @@ export default function InvestorSettingsScreen() {
     },
   });
 
+  // Handle both camelCase (API) and snake_case (types)
+  const inv = investor as any;
+  const kycStatus = inv?.kycStatus || inv?.kyc_status;
+  const investorNumber = inv?.investorNumber || inv?.investor_number;
+
   const handleLogout = () => {
     Alert.alert(
       'Log Out',
@@ -91,7 +96,7 @@ export default function InvestorSettingsScreen() {
   };
 
   const getKycBadgeVariant = (): BadgeVariant => {
-    switch (investor?.kyc_status) {
+    switch (kycStatus) {
       case 'approved':
         return 'success';
       case 'pending':
@@ -117,10 +122,10 @@ export default function InvestorSettingsScreen() {
           type: 'press',
           icon: Shield,
           label: 'KYC Verification',
-          badge: investor?.kyc_status,
+          badge: kycStatus,
           badgeVariant: getKycBadgeVariant(),
           onPress: () => {
-            if (investor?.kyc_status !== 'approved') {
+            if (kycStatus !== 'approved') {
               router.push('/(investor)/verify');
             }
           },
@@ -199,7 +204,7 @@ export default function InvestorSettingsScreen() {
                     {investor?.user?.email || investor?.email}
                   </Text>
                   <Text style={styles.investorNumber}>
-                    Investor #{investor?.investor_number}
+                    Investor #{investorNumber}
                   </Text>
                 </View>
               </CardContent>

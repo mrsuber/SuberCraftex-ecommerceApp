@@ -43,7 +43,8 @@ export default function OrderDetailScreen() {
     queryKey: ['order', id],
     queryFn: async () => {
       const response = await apiClient.get(API_ENDPOINTS.orders.detail(id!));
-      return response.data as Order;
+      // API might return { order: {...} } or just {...}
+      return (response.data.order || response.data) as Order;
     },
     enabled: !!id,
   });
@@ -65,23 +66,38 @@ export default function OrderDetailScreen() {
     );
   }
 
-  const isCancelled = order.status === 'cancelled' || order.status === 'refunded';
-  const currentStepIndex = STATUS_STEPS.findIndex((s) => s.status === order.status);
+  // Handle both camelCase (API) and snake_case (types)
+  const ord = order as any;
+  const orderNumber = ord.orderNumber || ord.order_number;
+  const createdAt = ord.createdAt || ord.created_at;
+  const orderStatus = ord.orderStatus || ord.status || ord.order_status;
+  const trackingNumber = ord.trackingNumber || ord.tracking_number;
+  const orderItems = ord.orderItems || ord.order_items || [];
+  const shippingAddress = ord.shippingAddress || ord.shipping_address;
+  const subtotal = ord.subtotal || 0;
+  const shippingCost = ord.shippingCost ?? ord.shipping_cost ?? 0;
+  const discountAmount = ord.discountAmount ?? ord.discount_amount ?? 0;
+  const taxAmount = ord.taxAmount ?? ord.tax_amount ?? 0;
+  const totalAmount = ord.totalAmount || ord.total_amount || 0;
+  const paymentMethod = ord.paymentMethod || ord.payment_method || 'cash';
+
+  const isCancelled = orderStatus === 'cancelled' || orderStatus === 'refunded';
+  const currentStepIndex = STATUS_STEPS.findIndex((s) => s.status === orderStatus);
 
   return (
     <>
-      <Stack.Screen options={{ headerTitle: `Order #${order.order_number}` }} />
+      <Stack.Screen options={{ headerTitle: `Order #${orderNumber}` }} />
       <SafeAreaView style={styles.container} edges={['bottom']}>
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* Status Header */}
           <View style={styles.statusHeader}>
             <Badge
-              label={formatStatusLabel(order.status)}
-              variant={getStatusBadgeVariant(order.status)}
+              label={formatStatusLabel(orderStatus)}
+              variant={getStatusBadgeVariant(orderStatus)}
               size="md"
             />
             <Text style={styles.statusDate}>
-              Placed on {formatDate(order.created_at)}
+              Placed on {formatDate(createdAt)}
             </Text>
           </View>
 
@@ -135,10 +151,10 @@ export default function OrderDetailScreen() {
                   })}
                 </View>
 
-                {order.tracking_number && (
+                {trackingNumber && (
                   <View style={styles.trackingInfo}>
                     <Text style={styles.trackingLabel}>Tracking Number</Text>
-                    <Text style={styles.trackingNumber}>{order.tracking_number}</Text>
+                    <Text style={styles.trackingNumber}>{trackingNumber}</Text>
                     <Button
                       title="Track Package"
                       variant="outline"
@@ -154,61 +170,70 @@ export default function OrderDetailScreen() {
 
           {/* Order Items */}
           <Card style={styles.section} variant="outlined">
-            <CardHeader title={`Items (${order.order_items?.length || 0})`} />
+            <CardHeader title={`Items (${orderItems.length})`} />
             <CardContent>
-              {order.order_items?.map((item) => (
-                <View key={item.id} style={styles.orderItem}>
-                  <View style={styles.itemImage}>
-                    {item.product_image ? (
-                      <Image
-                        source={{ uri: item.product_image }}
-                        style={styles.productImage}
-                      />
-                    ) : (
-                      <View style={styles.imagePlaceholder}>
-                        <Package size={24} color={colors.gray[300]} />
+              {orderItems.map((item: any) => {
+                const productImage = item.productImage || item.product_image;
+                const productName = item.productName || item.product_name || item.name;
+                const productSku = item.productSku || item.product_sku || item.sku;
+                const itemTotal = item.total || (item.price * item.quantity);
+
+                return (
+                  <View key={item.id} style={styles.orderItem}>
+                    <View style={styles.itemImage}>
+                      {productImage ? (
+                        <Image
+                          source={{ uri: productImage }}
+                          style={styles.productImage}
+                        />
+                      ) : (
+                        <View style={styles.imagePlaceholder}>
+                          <Package size={24} color={colors.gray[300]} />
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.itemInfo}>
+                      <Text style={styles.itemName}>{productName}</Text>
+                      {productSku && <Text style={styles.itemSku}>SKU: {productSku}</Text>}
+                      <View style={styles.itemPricing}>
+                        <Text style={styles.itemPrice}>
+                          {formatCurrency(item.price)} × {item.quantity}
+                        </Text>
+                        <Text style={styles.itemTotal}>
+                          {formatCurrency(itemTotal)}
+                        </Text>
                       </View>
-                    )}
-                  </View>
-                  <View style={styles.itemInfo}>
-                    <Text style={styles.itemName}>{item.product_name}</Text>
-                    <Text style={styles.itemSku}>SKU: {item.product_sku}</Text>
-                    <View style={styles.itemPricing}>
-                      <Text style={styles.itemPrice}>
-                        {formatCurrency(item.price)} × {item.quantity}
-                      </Text>
-                      <Text style={styles.itemTotal}>
-                        {formatCurrency(item.total)}
-                      </Text>
                     </View>
                   </View>
-                </View>
-              ))}
+                );
+              })}
             </CardContent>
           </Card>
 
           {/* Shipping Address */}
-          {order.shipping_address && (
+          {shippingAddress && (
             <Card style={styles.section} variant="outlined">
               <CardHeader
                 title="Shipping Address"
                 action={<MapPin size={18} color={colors.gray[400]} />}
               />
               <CardContent>
-                <Text style={styles.addressName}>{order.shipping_address.full_name}</Text>
-                <Text style={styles.addressText}>
-                  {order.shipping_address.address_line1}
+                <Text style={styles.addressName}>
+                  {shippingAddress.fullName || shippingAddress.full_name}
                 </Text>
-                {order.shipping_address.address_line2 && (
+                <Text style={styles.addressText}>
+                  {shippingAddress.addressLine1 || shippingAddress.address_line1}
+                </Text>
+                {(shippingAddress.addressLine2 || shippingAddress.address_line2) && (
                   <Text style={styles.addressText}>
-                    {order.shipping_address.address_line2}
+                    {shippingAddress.addressLine2 || shippingAddress.address_line2}
                   </Text>
                 )}
                 <Text style={styles.addressText}>
-                  {order.shipping_address.city}, {order.shipping_address.state}{' '}
-                  {order.shipping_address.postal_code}
+                  {shippingAddress.city}, {shippingAddress.state}{' '}
+                  {shippingAddress.postalCode || shippingAddress.postal_code}
                 </Text>
-                <Text style={styles.addressText}>{order.shipping_address.phone}</Text>
+                <Text style={styles.addressText}>{shippingAddress.phone}</Text>
               </CardContent>
             </Card>
           )}
@@ -219,37 +244,37 @@ export default function OrderDetailScreen() {
             <CardContent>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Subtotal</Text>
-                <Text style={styles.summaryValue}>{formatCurrency(order.subtotal)}</Text>
+                <Text style={styles.summaryValue}>{formatCurrency(subtotal)}</Text>
               </View>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Shipping</Text>
                 <Text style={styles.summaryValue}>
-                  {order.shipping_cost === 0 ? 'Free' : formatCurrency(order.shipping_cost)}
+                  {shippingCost === 0 ? 'Free' : formatCurrency(shippingCost)}
                 </Text>
               </View>
-              {order.discount_amount > 0 && (
+              {discountAmount > 0 && (
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Discount</Text>
                   <Text style={[styles.summaryValue, styles.discountValue]}>
-                    -{formatCurrency(order.discount_amount)}
+                    -{formatCurrency(discountAmount)}
                   </Text>
                 </View>
               )}
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Tax</Text>
-                <Text style={styles.summaryValue}>{formatCurrency(order.tax_amount)}</Text>
+                <Text style={styles.summaryValue}>{formatCurrency(taxAmount)}</Text>
               </View>
               <View style={[styles.summaryRow, styles.totalRow]}>
                 <Text style={styles.totalLabel}>Total</Text>
-                <Text style={styles.totalValue}>{formatCurrency(order.total_amount)}</Text>
+                <Text style={styles.totalValue}>{formatCurrency(totalAmount)}</Text>
               </View>
 
               <View style={styles.paymentMethod}>
                 <CreditCard size={18} color={colors.gray[500]} />
                 <Text style={styles.paymentMethodText}>
-                  {order.payment_method === 'card'
+                  {paymentMethod === 'card'
                     ? 'Paid with Card'
-                    : order.payment_method === 'mobile_payment'
+                    : paymentMethod === 'mobile_payment'
                     ? 'Paid with Mobile Money'
                     : 'Cash on Delivery'}
                 </Text>
@@ -258,7 +283,7 @@ export default function OrderDetailScreen() {
           </Card>
 
           {/* Actions */}
-          {order.status === 'delivered' && (
+          {orderStatus === 'delivered' && (
             <View style={styles.actions}>
               <Button
                 title="Reorder"

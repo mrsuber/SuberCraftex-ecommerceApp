@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Package,
   ChevronRight,
+  ChevronLeft,
   Camera,
   Calendar,
   Filter,
@@ -139,7 +140,16 @@ export default function TailorBookingsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <ChevronLeft size={24} color={colors.gray[900]} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>My Bookings</Text>
+        <View style={styles.headerRight} />
+      </View>
+
       {/* Status Filter */}
       <View style={styles.filterContainer}>
         <FlatList
@@ -199,6 +209,27 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.gray[50],
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.white,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray[200],
+  },
+  backButton: {
+    padding: spacing.xs,
+  },
+  headerTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold,
+    color: colors.gray[900],
+  },
+  headerRight: {
+    width: 40,
   },
   loaderContainer: {
     flex: 1,
