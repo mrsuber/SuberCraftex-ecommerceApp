@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,9 @@ import {
   Check,
   Clock,
   XCircle,
+  Store,
+  Wallet,
+  AlertTriangle,
 } from 'lucide-react-native';
 import { Button, Badge, Card, CardContent, CardHeader } from '@/components/ui';
 import { apiClient } from '@/api/client';
@@ -35,11 +38,51 @@ const STATUS_STEPS: { status: OrderStatus; label: string; icon: any }[] = [
   { status: 'delivered', label: 'Delivered', icon: Check },
 ];
 
+// Countdown timer hook
+const useCountdown = (targetDate: Date | null) => {
+  const [timeLeft, setTimeLeft] = useState<{
+    hours: number;
+    minutes: number;
+    seconds: number;
+    expired: boolean;
+  }>({ hours: 0, minutes: 0, seconds: 0, expired: true });
+
+  useEffect(() => {
+    if (!targetDate) return;
+
+    const calculateTimeLeft = () => {
+      const now = new Date().getTime();
+      const target = targetDate.getTime();
+      const difference = target - now;
+
+      if (difference <= 0) {
+        return { hours: 0, minutes: 0, seconds: 0, expired: true };
+      }
+
+      const hours = Math.floor(difference / (1000 * 60 * 60));
+      const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+
+      return { hours, minutes, seconds, expired: false };
+    };
+
+    setTimeLeft(calculateTimeLeft());
+
+    const timer = setInterval(() => {
+      setTimeLeft(calculateTimeLeft());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [targetDate]);
+
+  return timeLeft;
+};
+
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
-  const { data: order, isLoading, error } = useQuery({
+  const { data: order, isLoading, error, refetch } = useQuery({
     queryKey: ['order', id],
     queryFn: async () => {
       const response = await apiClient.get(API_ENDPOINTS.orders.detail(id!));
@@ -80,6 +123,20 @@ export default function OrderDetailScreen() {
   const taxAmount = ord.taxAmount ?? ord.tax_amount ?? 0;
   const totalAmount = ord.totalAmount || ord.total_amount || 0;
   const paymentMethod = ord.paymentMethod || ord.payment_method || 'cash';
+  const shippingMethod = ord.shippingMethod || ord.shipping_method || 'standard';
+  const pickupDeadline = ord.pickupDeadline || ord.pickup_deadline;
+
+  const isPickupOrder = shippingMethod === 'in_store';
+  const pickupDeadlineDate = pickupDeadline ? new Date(pickupDeadline) : null;
+  const countdown = useCountdown(pickupDeadlineDate);
+
+  // Auto-refetch when countdown expires to get updated order status
+  useEffect(() => {
+    if (countdown.expired && isPickupOrder && orderStatus === 'pending') {
+      const timer = setTimeout(() => refetch(), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown.expired, isPickupOrder, orderStatus, refetch]);
 
   const isCancelled = orderStatus === 'cancelled' || orderStatus === 'refunded';
   const currentStepIndex = STATUS_STEPS.findIndex((s) => s.status === orderStatus);
@@ -168,6 +225,105 @@ export default function OrderDetailScreen() {
             </Card>
           )}
 
+          {/* Shipping & Payment Method */}
+          <Card style={styles.section} variant="outlined">
+            <CardHeader title="Delivery & Payment" />
+            <CardContent>
+              {/* Shipping Method */}
+              <View style={styles.methodRow}>
+                {isPickupOrder ? (
+                  <Store size={20} color={colors.primary.DEFAULT} />
+                ) : (
+                  <Truck size={20} color={colors.primary.DEFAULT} />
+                )}
+                <View style={styles.methodInfo}>
+                  <Text style={styles.methodLabel}>
+                    {isPickupOrder ? 'Shop Pickup' :
+                      shippingMethod === 'express' ? 'Express Delivery' :
+                      shippingMethod === 'overnight' ? 'Next Day Delivery' :
+                      'Standard Delivery'}
+                  </Text>
+                  <Text style={styles.methodDescription}>
+                    {isPickupOrder ? 'Pick up at SuberCraftex Store, Douala' :
+                      shippingMethod === 'express' ? '2-3 business days' :
+                      shippingMethod === 'overnight' ? 'Next business day' :
+                      '5-7 business days'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Pickup Countdown */}
+              {isPickupOrder && orderStatus === 'pending' && pickupDeadlineDate && (
+                <View style={[
+                  styles.pickupCountdown,
+                  countdown.expired && styles.pickupCountdownExpired,
+                  !countdown.expired && countdown.hours < 2 && styles.pickupCountdownWarning,
+                ]}>
+                  {countdown.expired ? (
+                    <>
+                      <XCircle size={20} color="#dc2626" />
+                      <View style={styles.countdownInfo}>
+                        <Text style={styles.countdownExpiredTitle}>Pickup Time Expired</Text>
+                        <Text style={styles.countdownExpiredText}>
+                          This order will be auto-cancelled shortly
+                        </Text>
+                      </View>
+                    </>
+                  ) : (
+                    <>
+                      <Clock size={20} color={countdown.hours < 2 ? '#d97706' : colors.primary.DEFAULT} />
+                      <View style={styles.countdownInfo}>
+                        <Text style={[
+                          styles.countdownTitle,
+                          countdown.hours < 2 && styles.countdownTitleWarning
+                        ]}>
+                          Time remaining to pick up
+                        </Text>
+                        <Text style={[
+                          styles.countdownTime,
+                          countdown.hours < 2 && styles.countdownTimeWarning
+                        ]}>
+                          {String(countdown.hours).padStart(2, '0')}:
+                          {String(countdown.minutes).padStart(2, '0')}:
+                          {String(countdown.seconds).padStart(2, '0')}
+                        </Text>
+                      </View>
+                    </>
+                  )}
+                </View>
+              )}
+
+              {isPickupOrder && orderStatus === 'pending' && (
+                <View style={styles.pickupNote}>
+                  <AlertTriangle size={14} color="#92400e" />
+                  <Text style={styles.pickupNoteText}>
+                    Order will be auto-cancelled if not picked up within 12 hours
+                  </Text>
+                </View>
+              )}
+
+              {/* Divider */}
+              <View style={styles.methodDivider} />
+
+              {/* Payment Method */}
+              <View style={styles.methodRow}>
+                <Wallet size={20} color={colors.primary.DEFAULT} />
+                <View style={styles.methodInfo}>
+                  <Text style={styles.methodLabel}>
+                    {paymentMethod === 'card' ? 'Card Payment' :
+                     paymentMethod === 'mobile_payment' ? 'Mobile Money' :
+                     'Cash on Delivery'}
+                  </Text>
+                  <Text style={styles.methodDescription}>
+                    {paymentMethod === 'card' ? 'Paid via Credit/Debit Card' :
+                     paymentMethod === 'mobile_payment' ? 'Paid via MTN MoMo / Orange Money' :
+                     isPickupOrder ? 'Pay when you pick up your order' : 'Pay when you receive your order'}
+                  </Text>
+                </View>
+              </View>
+            </CardContent>
+          </Card>
+
           {/* Order Items */}
           <Card style={styles.section} variant="outlined">
             <CardHeader title={`Items (${orderItems.length})`} />
@@ -210,8 +366,22 @@ export default function OrderDetailScreen() {
             </CardContent>
           </Card>
 
-          {/* Shipping Address */}
-          {shippingAddress && (
+          {/* Shipping Address / Pickup Location */}
+          {isPickupOrder ? (
+            <Card style={styles.section} variant="outlined">
+              <CardHeader
+                title="Pickup Location"
+                action={<Store size={18} color={colors.gray[400]} />}
+              />
+              <CardContent>
+                <Text style={styles.addressName}>SuberCraftex Store</Text>
+                <Text style={styles.addressText}>Douala, Cameroon</Text>
+                <Text style={[styles.addressText, { marginTop: spacing.xs }]}>
+                  Bring your order confirmation or ID for pickup
+                </Text>
+              </CardContent>
+            </Card>
+          ) : shippingAddress && (
             <Card style={styles.section} variant="outlined">
               <CardHeader
                 title="Shipping Address"
@@ -519,5 +689,89 @@ const styles = StyleSheet.create({
   },
   actions: {
     padding: spacing.lg,
+  },
+  methodRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  methodInfo: {
+    flex: 1,
+  },
+  methodLabel: {
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.semibold,
+    color: colors.gray[900],
+  },
+  methodDescription: {
+    fontSize: fontSize.sm,
+    color: colors.gray[500],
+    marginTop: 2,
+  },
+  methodDivider: {
+    height: 1,
+    backgroundColor: colors.gray[100],
+    marginVertical: spacing.md,
+  },
+  pickupCountdown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.primary[50],
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    marginTop: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.primary[200],
+  },
+  pickupCountdownWarning: {
+    backgroundColor: '#fef3c7',
+    borderColor: '#f59e0b',
+  },
+  pickupCountdownExpired: {
+    backgroundColor: '#fef2f2',
+    borderColor: '#fecaca',
+  },
+  countdownInfo: {
+    flex: 1,
+  },
+  countdownTitle: {
+    fontSize: fontSize.sm,
+    color: colors.primary.DEFAULT,
+    fontWeight: fontWeight.medium,
+  },
+  countdownTitleWarning: {
+    color: '#d97706',
+  },
+  countdownTime: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
+    color: colors.primary.DEFAULT,
+    fontVariant: ['tabular-nums'],
+  },
+  countdownTimeWarning: {
+    color: '#d97706',
+  },
+  countdownExpiredTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: '#dc2626',
+  },
+  countdownExpiredText: {
+    fontSize: fontSize.xs,
+    color: '#dc2626',
+  },
+  pickupNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.sm,
+  },
+  pickupNoteText: {
+    fontSize: fontSize.xs,
+    color: '#92400e',
+    flex: 1,
   },
 });
