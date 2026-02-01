@@ -25,7 +25,6 @@ import {
   XCircle,
 } from 'lucide-react-native';
 import { Button, Input, Card, CardContent, CardHeader, Badge } from '@/components/ui';
-import { Picker } from '@react-native-picker/picker';
 import { apiClient } from '@/api/client';
 import { API_ENDPOINTS } from '@/config/api';
 import { formatCurrency, formatDate, getImageUrl } from '@/utils/format';
@@ -651,19 +650,33 @@ export default function WithdrawalsScreen() {
                     </Text>
                   </View>
 
-                  <View style={styles.pickerContainer}>
-                    <Text style={styles.inputLabel}>Provider</Text>
-                    <View style={styles.pickerWrapper}>
-                      <Picker
-                        selectedValue={momoProvider}
-                        onValueChange={(value) => setMomoProvider(value)}
-                        style={styles.picker}
+                  <Text style={styles.inputLabel}>Provider</Text>
+                  <View style={styles.providerOptions}>
+                    {MOMO_PROVIDERS.map((p) => (
+                      <TouchableOpacity
+                        key={p.value}
+                        style={[
+                          styles.providerCard,
+                          momoProvider === p.value && styles.providerCardSelected,
+                        ]}
+                        onPress={() => setMomoProvider(p.value)}
                       >
-                        {MOMO_PROVIDERS.map((p) => (
-                          <Picker.Item key={p.value} label={p.label} value={p.value} />
-                        ))}
-                      </Picker>
-                    </View>
+                        <Text style={[
+                          styles.providerLabel,
+                          momoProvider === p.value && styles.providerLabelSelected,
+                        ]}>
+                          {p.label}
+                        </Text>
+                        <View
+                          style={[
+                            styles.radioButton,
+                            momoProvider === p.value && styles.radioButtonSelected,
+                          ]}
+                        >
+                          {momoProvider === p.value && <View style={styles.radioButtonInner} />}
+                        </View>
+                      </TouchableOpacity>
+                    ))}
                   </View>
 
                   <Input
@@ -1037,24 +1050,39 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     color: colors.gray[600],
   },
-  pickerContainer: {
-    marginBottom: spacing.md,
-  },
   inputLabel: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
     color: colors.gray[700],
-    marginBottom: spacing.xs,
+    marginBottom: spacing.sm,
   },
-  pickerWrapper: {
+  providerOptions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  providerCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.md,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.md,
     borderWidth: 1,
     borderColor: colors.gray[300],
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.white,
-    overflow: 'hidden',
   },
-  picker: {
-    height: 50,
+  providerCardSelected: {
+    borderColor: colors.primary.DEFAULT,
+    backgroundColor: colors.primary[50],
+  },
+  providerLabel: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: colors.gray[700],
+  },
+  providerLabelSelected: {
+    color: colors.primary.DEFAULT,
   },
   infoBox: {
     flexDirection: 'row',
