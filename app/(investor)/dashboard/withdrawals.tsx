@@ -651,33 +651,32 @@ export default function WithdrawalsScreen() {
                   </View>
 
                   <Text style={styles.inputLabel}>Provider</Text>
-                  <View style={styles.providerOptions}>
-                    {MOMO_PROVIDERS.map((p) => (
-                      <TouchableOpacity
-                        key={p.value}
+                  {MOMO_PROVIDERS.map((p) => (
+                    <TouchableOpacity
+                      key={p.value}
+                      style={[
+                        styles.sourceCard,
+                        momoProvider === p.value && styles.sourceCardSelected,
+                      ]}
+                      onPress={() => setMomoProvider(p.value)}
+                    >
+                      <View style={[styles.sourceIcon, { backgroundColor: p.value === 'MTN' ? '#FFCC00' : '#FF6600' }]}>
+                        <Smartphone size={24} color={colors.white} />
+                      </View>
+                      <View style={styles.sourceContent}>
+                        <Text style={styles.sourceLabel}>{p.label}</Text>
+                        <Text style={styles.sourceBalance}>{p.value}</Text>
+                      </View>
+                      <View
                         style={[
-                          styles.providerCard,
-                          momoProvider === p.value && styles.providerCardSelected,
+                          styles.radioButton,
+                          momoProvider === p.value && styles.radioButtonSelected,
                         ]}
-                        onPress={() => setMomoProvider(p.value)}
                       >
-                        <Text style={[
-                          styles.providerLabel,
-                          momoProvider === p.value && styles.providerLabelSelected,
-                        ]}>
-                          {p.label}
-                        </Text>
-                        <View
-                          style={[
-                            styles.radioButton,
-                            momoProvider === p.value && styles.radioButtonSelected,
-                          ]}
-                        >
-                          {momoProvider === p.value && <View style={styles.radioButtonInner} />}
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+                        {momoProvider === p.value && <View style={styles.radioButtonInner} />}
+                      </View>
+                    </TouchableOpacity>
+                  ))}
 
                   <Input
                     label="Phone Number"
@@ -1055,34 +1054,6 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.medium,
     color: colors.gray[700],
     marginBottom: spacing.sm,
-  },
-  providerOptions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  providerCard: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.md,
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.gray[300],
-  },
-  providerCardSelected: {
-    borderColor: colors.primary.DEFAULT,
-    backgroundColor: colors.primary[50],
-  },
-  providerLabel: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: colors.gray[700],
-  },
-  providerLabelSelected: {
-    color: colors.primary.DEFAULT,
   },
   infoBox: {
     flexDirection: 'row',
