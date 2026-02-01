@@ -192,12 +192,22 @@ export default function KycVerifyScreen() {
           <View style={styles.previewOverlay}>
             <Check size={24} color={colors.white} />
           </View>
-          <TouchableOpacity
-            style={styles.changeButton}
-            onPress={() => pickImage(type)}
-          >
-            <Text style={styles.changeButtonText}>Change</Text>
-          </TouchableOpacity>
+          <View style={styles.changeActions}>
+            <TouchableOpacity
+              style={styles.changeActionButton}
+              onPress={() => pickImage(type, true)}
+            >
+              <Camera size={16} color={colors.primary.DEFAULT} />
+              <Text style={styles.changeButtonText}>Retake</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.changeActionButton}
+              onPress={() => pickImage(type, false)}
+            >
+              <Upload size={16} color={colors.primary.DEFAULT} />
+              <Text style={styles.changeButtonText}>Gallery</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       ) : (
         <View style={styles.uploadActions}>
@@ -676,12 +686,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  changeButton: {
+  changeActions: {
     position: 'absolute',
     bottom: spacing.sm,
     right: spacing.sm,
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  changeActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
     borderRadius: borderRadius.md,
     backgroundColor: colors.white,
   },
