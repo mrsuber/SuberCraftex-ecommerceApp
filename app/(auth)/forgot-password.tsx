@@ -5,16 +5,18 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Alert,
+  TouchableOpacity,
+  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Mail, ArrowLeft } from 'lucide-react-native';
+import { Mail, ArrowLeft, AlertTriangle, WifiOff, XCircle, CheckCircle } from 'lucide-react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button, Input } from '@/components/ui';
-import { colors, spacing, fontSize, fontWeight } from '@/config/theme';
+import { authApi } from '@/api/auth';
+import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/config/theme';
 
 const forgotPasswordSchema = z.object({
   email: z.string().email('Please enter a valid email'),
@@ -22,10 +24,54 @@ const forgotPasswordSchema = z.object({
 
 type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
 
+function getReadableError(error: any): { title: string; message: string; type: 'network' | 'generic' } {
+  if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+    return {
+      title: 'No Internet Connection',
+      message: 'Please check your Wi-Fi or mobile data and try again.',
+      type: 'network',
+    };
+  }
+
+  if (error.code === 'ECONNABORTED') {
+    return {
+      title: 'Connection Timed Out',
+      message: 'The server is taking too long to respond. Please try again in a moment.',
+      type: 'network',
+    };
+  }
+
+  const status = error.response?.status;
+  const serverError = error.response?.data?.error;
+
+  if (status === 400) {
+    return {
+      title: 'Invalid Email',
+      message: serverError || 'Please enter a valid email address.',
+      type: 'generic',
+    };
+  }
+
+  if (status && status >= 500) {
+    return {
+      title: 'Server Problem',
+      message: 'Something went wrong on our end. Please try again in a few minutes.',
+      type: 'generic',
+    };
+  }
+
+  return {
+    title: 'Request Failed',
+    message: serverError || 'Something unexpected happened. Please try again.',
+    type: 'generic',
+  };
+}
+
 export default function ForgotPasswordScreen() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [errorInfo, setErrorInfo] = useState<{ title: string; message: string; type: string } | null>(null);
 
   const {
     control,
@@ -41,16 +87,23 @@ export default function ForgotPasswordScreen() {
 
   const onSubmit = async (data: ForgotPasswordFormData) => {
     setIsLoading(true);
+    setErrorInfo(null);
     try {
-      // TODO: Implement forgot password API
-      // await authApi.forgotPassword(data.email);
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await authApi.forgotPassword(data.email);
       setEmailSent(true);
     } catch (error: any) {
-      const message = error.response?.data?.error || 'Failed to send reset email. Please try again.';
-      Alert.alert('Error', message);
+      setErrorInfo(getReadableError(error));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setIsLoading(true);
+    try {
+      await authApi.forgotPassword(getValues('email'));
+    } catch (error: any) {
+      // Silently ignore - the success screen stays
     } finally {
       setIsLoading(false);
     }
@@ -60,8 +113,8 @@ export default function ForgotPasswordScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.content}>
-          <View style={styles.iconContainer}>
-            <Mail size={48} color={colors.primary.DEFAULT} />
+          <View style={styles.successIconContainer}>
+            <CheckCircle size={48} color={colors.success.DEFAULT} />
           </View>
 
           <View style={styles.header}>
@@ -72,9 +125,27 @@ export default function ForgotPasswordScreen() {
             <Text style={styles.email}>{getValues('email')}</Text>
           </View>
 
-          <Text style={styles.info}>
-            If you don't see the email, check your spam folder. The link will expire in 1 hour.
+          <View style={styles.infoBox}>
+            <Text style={styles.infoTitle}>What to do next:</Text>
+            <Text style={styles.infoStep}>1. Open the email from SuberCraftex</Text>
+            <Text style={styles.infoStep}>2. Tap the reset link in the email</Text>
+            <Text style={styles.infoStep}>3. Create a new password</Text>
+            <Text style={styles.infoStep}>4. Come back here and log in</Text>
+          </View>
+
+          <Text style={styles.spamHint}>
+            Don't see the email? Check your spam or junk folder. The link expires in 1 hour.
           </Text>
+
+          <Button
+            title="Resend Email"
+            variant="outline"
+            onPress={handleResend}
+            loading={isLoading}
+            fullWidth
+            size="lg"
+            style={{ marginBottom: spacing.md }}
+          />
 
           <Button
             title="Back to Login"
@@ -93,7 +164,11 @@ export default function ForgotPasswordScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <View style={styles.content}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           <Button
             title="Back"
             variant="ghost"
@@ -102,12 +177,42 @@ export default function ForgotPasswordScreen() {
             style={styles.backButton}
           />
 
+          <View style={styles.iconContainer}>
+            <Mail size={48} color={colors.primary.DEFAULT} />
+          </View>
+
           <View style={styles.header}>
             <Text style={styles.title}>Forgot Password?</Text>
             <Text style={styles.subtitle}>
-              Enter your email address and we'll send you instructions to reset your password.
+              Enter the email you used to create your account. We'll send you a link to reset your password.
             </Text>
           </View>
+
+          {/* Error Banner */}
+          {errorInfo && (
+            <View style={[
+              styles.errorBanner,
+              errorInfo.type === 'network' && styles.errorBannerNetwork,
+            ]}>
+              <View style={styles.errorBannerHeader}>
+                {errorInfo.type === 'network' ? (
+                  <WifiOff size={18} color={colors.warning.DEFAULT} />
+                ) : (
+                  <AlertTriangle size={18} color={colors.error.DEFAULT} />
+                )}
+                <Text style={[
+                  styles.errorBannerTitle,
+                  errorInfo.type === 'network' && styles.errorBannerTitleWarning,
+                ]}>
+                  {errorInfo.title}
+                </Text>
+                <TouchableOpacity onPress={() => setErrorInfo(null)} style={styles.errorDismiss}>
+                  <XCircle size={18} color={colors.gray[400]} />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.errorBannerMessage}>{errorInfo.message}</Text>
+            </View>
+          )}
 
           <View style={styles.form}>
             <Controller
@@ -122,7 +227,10 @@ export default function ForgotPasswordScreen() {
                   autoCorrect={false}
                   leftIcon={<Mail size={20} color={colors.gray[400]} />}
                   value={value}
-                  onChangeText={onChange}
+                  onChangeText={(text) => {
+                    onChange(text);
+                    if (errorInfo) setErrorInfo(null);
+                  }}
                   onBlur={onBlur}
                   error={errors.email?.message}
                 />
@@ -130,14 +238,14 @@ export default function ForgotPasswordScreen() {
             />
 
             <Button
-              title="Send Reset Instructions"
+              title="Send Reset Link"
               onPress={handleSubmit(onSubmit)}
               loading={isLoading}
               fullWidth
               size="lg"
             />
           </View>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -161,6 +269,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   iconContainer: {
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  successIconContainer: {
     alignItems: 'center',
     marginBottom: spacing.xl,
   },
@@ -190,11 +302,66 @@ const styles = StyleSheet.create({
   form: {
     marginBottom: spacing.xl,
   },
-  info: {
+  infoBox: {
+    backgroundColor: colors.gray[50],
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  infoTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.gray[800],
+    marginBottom: spacing.sm,
+  },
+  infoStep: {
+    fontSize: fontSize.sm,
+    color: colors.gray[600],
+    lineHeight: 22,
+    marginLeft: spacing.xs,
+  },
+  spamHint: {
     fontSize: fontSize.sm,
     color: colors.gray[500],
     textAlign: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
     lineHeight: 20,
+  },
+  // Error banner styles
+  errorBanner: {
+    backgroundColor: colors.error[50],
+    borderWidth: 1,
+    borderColor: colors.error[200],
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  errorBannerNetwork: {
+    backgroundColor: colors.warning[50],
+    borderColor: colors.warning[200],
+  },
+  errorBannerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: 4,
+  },
+  errorBannerTitle: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.error.DEFAULT,
+  },
+  errorBannerTitleWarning: {
+    color: colors.warning.DEFAULT,
+  },
+  errorBannerMessage: {
+    fontSize: fontSize.sm,
+    color: colors.gray[700],
+    lineHeight: 20,
+    marginLeft: 26,
+  },
+  errorDismiss: {
+    padding: 2,
   },
 });

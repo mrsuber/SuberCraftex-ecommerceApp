@@ -55,4 +55,9 @@ export const authApi = {
     const response = await apiClient.post(API_ENDPOINTS.auth.resendVerification, { email });
     return response.data;
   },
+
+  forgotPassword: async (email: string): Promise<{ message: string }> => {
+    const response = await apiClient.post(API_ENDPOINTS.auth.forgotPassword, { email });
+    return response.data;
+  },
 };

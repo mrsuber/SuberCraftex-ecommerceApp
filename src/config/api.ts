@@ -12,6 +12,7 @@ export const API_ENDPOINTS = {
     me: '/api/auth/me',
     verifyEmail: '/api/auth/verify-email',
     resendVerification: '/api/auth/resend-verification',
+    forgotPassword: '/api/auth/forgot-password',
   },
   // Products
   products: {

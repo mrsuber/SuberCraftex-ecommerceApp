@@ -12,13 +12,13 @@ import {
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { User, Mail, Lock, Phone } from 'lucide-react-native';
+import { User, Mail, Lock, Phone, AlertTriangle, WifiOff, XCircle } from 'lucide-react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button, Input } from '@/components/ui';
 import { authApi } from '@/api/auth';
-import { colors, spacing, fontSize, fontWeight } from '@/config/theme';
+import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/config/theme';
 
 const registerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -33,9 +33,61 @@ const registerSchema = z.object({
 
 type RegisterFormData = z.infer<typeof registerSchema>;
 
+function getReadableError(error: any): { title: string; message: string; type: 'network' | 'duplicate' | 'generic' } {
+  if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+    return {
+      title: 'No Internet Connection',
+      message: 'Please check your Wi-Fi or mobile data and try again.',
+      type: 'network',
+    };
+  }
+
+  if (error.code === 'ECONNABORTED') {
+    return {
+      title: 'Connection Timed Out',
+      message: 'The server is taking too long to respond. Please try again in a moment.',
+      type: 'network',
+    };
+  }
+
+  const status = error.response?.status;
+  const serverError = error.response?.data?.error;
+
+  if (status === 400 && serverError?.toLowerCase().includes('already registered')) {
+    return {
+      title: 'Email Already In Use',
+      message: 'An account with this email already exists. Try logging in instead, or use a different email.',
+      type: 'duplicate',
+    };
+  }
+
+  if (status === 400) {
+    return {
+      title: 'Invalid Information',
+      message: serverError || 'Please check the information you entered and try again.',
+      type: 'generic',
+    };
+  }
+
+  if (status && status >= 500) {
+    return {
+      title: 'Server Problem',
+      message: 'Something went wrong on our end. Please try again in a few minutes.',
+      type: 'generic',
+    };
+  }
+
+  return {
+    title: 'Registration Failed',
+    message: serverError || 'Something unexpected happened. Please try again.',
+    type: 'generic',
+  };
+}
+
 export default function RegisterScreen() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [errorInfo, setErrorInfo] = useState<{ title: string; message: string; type: string } | null>(null);
 
   const {
     control,
@@ -54,6 +106,7 @@ export default function RegisterScreen() {
 
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true);
+    setErrorInfo(null);
     try {
       await authApi.register({
         name: data.name,
@@ -63,8 +116,8 @@ export default function RegisterScreen() {
       });
 
       Alert.alert(
-        'Registration Successful',
-        'Please check your email to verify your account.',
+        'Account Created!',
+        'We sent a verification link to your email. Please verify your email to log in.',
         [
           {
             text: 'OK',
@@ -76,8 +129,7 @@ export default function RegisterScreen() {
         ]
       );
     } catch (error: any) {
-      const message = error.response?.data?.error || 'Registration failed. Please try again.';
-      Alert.alert('Registration Failed', message);
+      setErrorInfo(getReadableError(error));
     } finally {
       setIsLoading(false);
     }
@@ -104,6 +156,37 @@ export default function RegisterScreen() {
             <Text style={styles.subtitle}>Sign up to get started</Text>
           </View>
 
+          {/* Error Banner */}
+          {errorInfo && (
+            <View style={[
+              styles.errorBanner,
+              errorInfo.type === 'network' && styles.errorBannerNetwork,
+            ]}>
+              <View style={styles.errorBannerHeader}>
+                {errorInfo.type === 'network' ? (
+                  <WifiOff size={18} color={colors.warning.DEFAULT} />
+                ) : (
+                  <AlertTriangle size={18} color={colors.error.DEFAULT} />
+                )}
+                <Text style={[
+                  styles.errorBannerTitle,
+                  errorInfo.type === 'network' && styles.errorBannerTitleWarning,
+                ]}>
+                  {errorInfo.title}
+                </Text>
+                <TouchableOpacity onPress={() => setErrorInfo(null)} style={styles.errorDismiss}>
+                  <XCircle size={18} color={colors.gray[400]} />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.errorBannerMessage}>{errorInfo.message}</Text>
+              {errorInfo.type === 'duplicate' && (
+                <TouchableOpacity onPress={() => router.push('/(auth)/login')} style={styles.errorAction}>
+                  <Text style={styles.errorActionText}>Go to Login</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
           <View style={styles.form}>
             <Controller
               control={control}
@@ -115,7 +198,10 @@ export default function RegisterScreen() {
                   autoCapitalize="words"
                   leftIcon={<User size={20} color={colors.gray[400]} />}
                   value={value}
-                  onChangeText={onChange}
+                  onChangeText={(text) => {
+                    onChange(text);
+                    if (errorInfo) setErrorInfo(null);
+                  }}
                   onBlur={onBlur}
                   error={errors.name?.message}
                 />
@@ -134,7 +220,10 @@ export default function RegisterScreen() {
                   autoCorrect={false}
                   leftIcon={<Mail size={20} color={colors.gray[400]} />}
                   value={value}
-                  onChangeText={onChange}
+                  onChangeText={(text) => {
+                    onChange(text);
+                    if (errorInfo) setErrorInfo(null);
+                  }}
                   onBlur={onBlur}
                   error={errors.email?.message}
                 />
@@ -151,7 +240,10 @@ export default function RegisterScreen() {
                   keyboardType="phone-pad"
                   leftIcon={<Phone size={20} color={colors.gray[400]} />}
                   value={value}
-                  onChangeText={onChange}
+                  onChangeText={(text) => {
+                    onChange(text);
+                    if (errorInfo) setErrorInfo(null);
+                  }}
                   onBlur={onBlur}
                   error={errors.phone?.message}
                 />
@@ -168,7 +260,10 @@ export default function RegisterScreen() {
                   secureTextEntry
                   leftIcon={<Lock size={20} color={colors.gray[400]} />}
                   value={value}
-                  onChangeText={onChange}
+                  onChangeText={(text) => {
+                    onChange(text);
+                    if (errorInfo) setErrorInfo(null);
+                  }}
                   onBlur={onBlur}
                   error={errors.password?.message}
                   helper="Must be at least 8 characters"
@@ -186,7 +281,10 @@ export default function RegisterScreen() {
                   secureTextEntry
                   leftIcon={<Lock size={20} color={colors.gray[400]} />}
                   value={value}
-                  onChangeText={onChange}
+                  onChangeText={(text) => {
+                    onChange(text);
+                    if (errorInfo) setErrorInfo(null);
+                  }}
                   onBlur={onBlur}
                   error={errors.confirmPassword?.message}
                 />
@@ -264,5 +362,51 @@ const styles = StyleSheet.create({
     fontSize: fontSize.base,
     color: colors.primary.DEFAULT,
     fontWeight: fontWeight.semibold,
+  },
+  // Error banner styles
+  errorBanner: {
+    backgroundColor: colors.error[50],
+    borderWidth: 1,
+    borderColor: colors.error[200],
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  errorBannerNetwork: {
+    backgroundColor: colors.warning[50],
+    borderColor: colors.warning[200],
+  },
+  errorBannerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: 4,
+  },
+  errorBannerTitle: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.error.DEFAULT,
+  },
+  errorBannerTitleWarning: {
+    color: colors.warning.DEFAULT,
+  },
+  errorBannerMessage: {
+    fontSize: fontSize.sm,
+    color: colors.gray[700],
+    lineHeight: 20,
+    marginLeft: 26,
+  },
+  errorDismiss: {
+    padding: 2,
+  },
+  errorAction: {
+    marginTop: spacing.sm,
+    marginLeft: 26,
+  },
+  errorActionText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.primary.DEFAULT,
   },
 });
