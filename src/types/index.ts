@@ -152,6 +152,7 @@ export interface Order {
   shipped_at: string | null;
   delivered_at: string | null;
   cancelled_at: string | null;
+  pickup_deadline?: string | null;
   order_items?: OrderItem[];
 }
 

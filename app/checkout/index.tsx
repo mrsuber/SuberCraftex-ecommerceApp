@@ -34,10 +34,11 @@ import { formatCurrency } from '@/utils/format';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/config/theme';
 import type { Address } from '@/types';
 
-type ShippingMethod = 'standard' | 'express' | 'overnight';
+type ShippingMethod = 'standard' | 'express' | 'overnight' | 'in_store';
 type PaymentMethod = 'card' | 'cash' | 'mobile_payment';
 
 const SHIPPING_OPTIONS = [
+  { id: 'in_store', label: 'Shop Pickup', time: 'Pick up within 12 hours', cost: 0, icon: MapPin },
   { id: 'standard', label: 'Standard Delivery', time: '5-7 business days', cost: 0, icon: Package },
   { id: 'express', label: 'Express Delivery', time: '2-3 business days', cost: 2000, icon: Truck },
   { id: 'overnight', label: 'Next Day Delivery', time: 'Next business day', cost: 5000, icon: Zap },
@@ -86,7 +87,7 @@ export default function CheckoutScreen() {
   const total = subtotal + shippingCost;
 
   const handlePlaceOrder = async () => {
-    if (!selectedAddress) {
+    if (!isPickup && !selectedAddress) {
       Alert.alert('Missing Address', 'Please select a delivery address');
       return;
     }
@@ -101,8 +102,8 @@ export default function CheckoutScreen() {
     try {
       const addr = selectedAddress as any;
 
-      // Format address for API
-      const addressData = {
+      // Format address for API (null for pickup orders without address)
+      const addressData = addr ? {
         fullName: addr.fullName || addr.full_name,
         email: user?.email || '',
         phone: addr.phone,
@@ -112,7 +113,7 @@ export default function CheckoutScreen() {
         state: addr.state,
         postalCode: addr.postalCode || addr.postal_code,
         country: addr.country,
-      };
+      } : null;
 
       const orderData = {
         items: items.map((item) => ({
@@ -124,13 +125,13 @@ export default function CheckoutScreen() {
           price: item.price,
         })),
         shippingAddress: addressData,
-        billingAddress: addressData, // Same as shipping for now
+        billingAddress: addressData,
         shippingMethod,
         paymentMethod,
         subtotal,
-        shippingCost,
+        shippingCost: isPickup ? 0 : shippingCost,
         taxAmount: 0,
-        totalAmount: total,
+        totalAmount: isPickup ? subtotal : total,
       };
 
       const response = await apiClient.post(API_ENDPOINTS.orders.create, orderData);
@@ -172,8 +173,10 @@ export default function CheckoutScreen() {
     }
   };
 
+  const isPickup = shippingMethod === 'in_store';
+
   const canProceed = () => {
-    if (currentStep === 1) return selectedAddress !== null;
+    if (currentStep === 1) return isPickup || selectedAddress !== null;
     return true;
   };
 
@@ -200,8 +203,29 @@ export default function CheckoutScreen() {
 
   const renderAddressSelection = () => (
     <View style={styles.stepContent}>
-      <Text style={styles.stepTitle}>Delivery Address</Text>
+      <Text style={styles.stepTitle}>{isPickup ? 'Pickup Confirmation' : 'Delivery Address'}</Text>
 
+      {isPickup ? (
+        <View style={styles.pickupConfirmation}>
+          <View style={styles.storeAddressCard}>
+            <MapPin size={20} color={colors.primary.DEFAULT} />
+            <View style={{ flex: 1, marginLeft: spacing.sm }}>
+              <Text style={styles.storeAddressTitle}>Pickup Location</Text>
+              <Text style={styles.storeAddressText}>SuberCraftex Store</Text>
+              <Text style={styles.storeAddressText}>Douala, Cameroon</Text>
+            </View>
+          </View>
+          <View style={styles.pickupNotice}>
+            <Clock size={18} color="#92400e" />
+            <Text style={styles.pickupNoticeText}>
+              Please pick up your order within 12 hours of placing it.
+            </Text>
+          </View>
+        </View>
+      ) : null}
+
+      {isPickup ? null : (
+      <>
       {isLoadingAddresses ? (
         <ActivityIndicator size="large" color={colors.primary.DEFAULT} />
       ) : addresses.length === 0 ? (
@@ -261,6 +285,8 @@ export default function CheckoutScreen() {
           </TouchableOpacity>
         </>
       )}
+      </>
+      )}
     </View>
   );
 
@@ -297,6 +323,26 @@ export default function CheckoutScreen() {
           </TouchableOpacity>
         );
       })}
+
+      {isPickup && (
+        <View style={styles.pickupNotice}>
+          <Clock size={18} color="#92400e" />
+          <Text style={styles.pickupNoticeText}>
+            Your order will be held for 12 hours. If not picked up, it will be automatically cancelled and items returned to stock.
+          </Text>
+        </View>
+      )}
+
+      {isPickup && (
+        <View style={styles.storeAddressCard}>
+          <MapPin size={18} color={colors.primary.DEFAULT} />
+          <View style={{ flex: 1, marginLeft: spacing.sm }}>
+            <Text style={styles.storeAddressTitle}>Pickup Location</Text>
+            <Text style={styles.storeAddressText}>SuberCraftex Store</Text>
+            <Text style={styles.storeAddressText}>Douala, Cameroon</Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 
@@ -346,10 +392,20 @@ export default function CheckoutScreen() {
       <View style={styles.stepContent}>
         <Text style={styles.stepTitle}>Order Review</Text>
 
-        {/* Delivery Address */}
+        {/* Delivery Address / Pickup Location */}
         <View style={styles.reviewSection}>
-          <Text style={styles.reviewSectionTitle}>Delivery Address</Text>
-          {addr && (
+          <Text style={styles.reviewSectionTitle}>
+            {isPickup ? 'Pickup Location' : 'Delivery Address'}
+          </Text>
+          {isPickup ? (
+            <View style={styles.reviewCard}>
+              <Text style={styles.reviewText}>SuberCraftex Store</Text>
+              <Text style={styles.reviewText}>Douala, Cameroon</Text>
+              <Text style={[styles.reviewText, { color: '#92400e', marginTop: 4 }]}>
+                Pick up within 12 hours
+              </Text>
+            </View>
+          ) : addr ? (
             <View style={styles.reviewCard}>
               <Text style={styles.reviewText}>{addr.fullName || addr.full_name}</Text>
               <Text style={styles.reviewText}>{addr.addressLine1 || addr.address_line1}</Text>
@@ -358,7 +414,7 @@ export default function CheckoutScreen() {
               </Text>
               <Text style={styles.reviewText}>{addr.phone}</Text>
             </View>
-          )}
+          ) : null}
         </View>
 
         {/* Shipping Method */}
@@ -856,5 +912,44 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.5,
+  },
+  pickupNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    padding: spacing.md,
+    backgroundColor: '#fffbeb',
+    borderRadius: borderRadius.md,
+    borderLeftWidth: 3,
+    borderLeftColor: '#f59e0b',
+    marginTop: spacing.md,
+  },
+  pickupNoticeText: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    color: '#92400e',
+    lineHeight: 20,
+  },
+  pickupConfirmation: {
+    gap: spacing.md,
+  },
+  storeAddressCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: spacing.md,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.gray[200],
+  },
+  storeAddressTitle: {
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.semibold,
+    color: colors.gray[900],
+    marginBottom: 2,
+  },
+  storeAddressText: {
+    fontSize: fontSize.sm,
+    color: colors.gray[600],
   },
 });

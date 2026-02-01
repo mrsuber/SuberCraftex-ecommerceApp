@@ -11,7 +11,7 @@ import {
 import { Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
-import { Package, TrendingUp } from 'lucide-react-native';
+import { Package, TrendingUp, BarChart3 } from 'lucide-react-native';
 import { Badge, Card, CardContent } from '@/components/ui';
 import { apiClient } from '@/api/client';
 import { API_ENDPOINTS } from '@/config/api';
@@ -77,7 +77,23 @@ export default function ProductAllocationsScreen() {
               <Text style={styles.statLabel}>Qty</Text>
               <Text style={styles.statValue}>{item.quantity}</Text>
             </View>
+            <View style={styles.stat}>
+              <Text style={styles.statLabel}>Remaining</Text>
+              <Text style={[styles.statValue, item.quantity_remaining <= 0 && { color: colors.gray[400] }]}>
+                {item.quantity_remaining}
+              </Text>
+            </View>
           </View>
+
+          {item.product?.price && (
+            <View style={styles.stockRow}>
+              <BarChart3 size={14} color={colors.gray[500]} />
+              <Text style={styles.stockLabel}>Available Stock</Text>
+              <Text style={styles.stockValue}>
+                {item.product ? `${formatCurrency(parseFloat(item.product.price))} / unit` : '-'}
+              </Text>
+            </View>
+          )}
 
           <View style={styles.progressRow}>
             <View style={styles.progressInfo}>
@@ -274,6 +290,26 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
     color: colors.gray[900],
+  },
+  stockRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: colors.gray[50],
+    borderRadius: borderRadius.sm,
+  },
+  stockLabel: {
+    fontSize: fontSize.xs,
+    color: colors.gray[500],
+    flex: 1,
+  },
+  stockValue: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.gray[700],
   },
   progressRow: {
     marginBottom: spacing.sm,
