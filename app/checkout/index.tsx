@@ -45,9 +45,9 @@ const SHIPPING_OPTIONS = [
 ];
 
 const PAYMENT_OPTIONS = [
-  { id: 'cash', label: 'Cash on Delivery', description: 'Pay when you receive your order', icon: Wallet },
-  { id: 'mobile_payment', label: 'Mobile Money', description: 'MTN MoMo, Orange Money, etc.', icon: CreditCard },
-  { id: 'card', label: 'Card Payment', description: 'Credit/Debit card via Stripe', icon: CreditCard },
+  { id: 'cash', label: 'Cash on Delivery', description: 'Pay when you receive your order', icon: Wallet, comingSoon: false },
+  { id: 'mobile_payment', label: 'Mobile Money', description: 'MTN MoMo, Orange Money, etc.', icon: CreditCard, comingSoon: true },
+  { id: 'card', label: 'Card Payment', description: 'Credit/Debit card via Stripe', icon: CreditCard, comingSoon: true },
 ];
 
 export default function CheckoutScreen() {
@@ -352,26 +352,34 @@ export default function CheckoutScreen() {
 
       {PAYMENT_OPTIONS.map((option) => {
         const Icon = option.icon;
+        const disabled = option.comingSoon;
         return (
           <TouchableOpacity
             key={option.id}
             style={[
               styles.optionCard,
-              paymentMethod === option.id && styles.cardSelected,
+              paymentMethod === option.id && !disabled && styles.cardSelected,
+              disabled && styles.optionDisabled,
             ]}
-            onPress={() => setPaymentMethod(option.id as PaymentMethod)}
+            onPress={() => !disabled && setPaymentMethod(option.id as PaymentMethod)}
+            activeOpacity={disabled ? 1 : 0.7}
           >
             <View style={styles.optionHeader}>
-              <View style={styles.radioButton}>
-                {paymentMethod === option.id && <View style={styles.radioButtonInner} />}
+              <View style={[styles.radioButton, disabled && { borderColor: colors.gray[300] }]}>
+                {paymentMethod === option.id && !disabled && <View style={styles.radioButtonInner} />}
               </View>
               <View style={styles.optionIcon}>
-                <Icon size={24} color={colors.primary.DEFAULT} />
+                <Icon size={24} color={disabled ? colors.gray[300] : colors.primary.DEFAULT} />
               </View>
               <View style={styles.optionInfo}>
-                <Text style={styles.optionLabel}>{option.label}</Text>
-                <Text style={styles.optionTime}>{option.description}</Text>
+                <Text style={[styles.optionLabel, disabled && { color: colors.gray[400] }]}>{option.label}</Text>
+                <Text style={styles.optionTime}>{disabled ? 'Coming soon' : option.description}</Text>
               </View>
+              {disabled && (
+                <View style={styles.comingSoonBadge}>
+                  <Text style={styles.comingSoonText}>Soon</Text>
+                </View>
+              )}
             </View>
           </TouchableOpacity>
         );
@@ -912,6 +920,22 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.5,
+  },
+  optionDisabled: {
+    opacity: 0.6,
+    backgroundColor: colors.gray[50],
+    borderColor: colors.gray[200],
+  },
+  comingSoonBadge: {
+    backgroundColor: colors.gray[200],
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+  },
+  comingSoonText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.gray[500],
   },
   pickupNotice: {
     flexDirection: 'row',
