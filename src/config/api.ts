@@ -46,6 +46,7 @@ export const API_ENDPOINTS = {
     detail: (id: string) => `/api/services/${id}`,
     availability: (id: string) => `/api/services/${id}/availability`,
     materials: (id: string) => `/api/services/${id}/materials`,
+    designCategories: (id: string) => `/api/services/${id}/design-categories`,
   },
   // Bookings
   bookings: {

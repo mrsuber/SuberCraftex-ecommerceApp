@@ -11,6 +11,8 @@ import {
 import { Calendar, Clock, Camera, Info } from 'lucide-react-native';
 import { Button } from '@/components/ui';
 import { PhotoUpload } from './PhotoUpload';
+import { DesignOptionsPicker } from './DesignOptionsPicker';
+import { DesignSelection } from '@/api/services';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/config/theme';
 import type { Service } from '@/types';
 
@@ -25,6 +27,7 @@ export interface OnsiteBookingData {
   scheduledTime: string;
   notes: string;
   requirementPhotos: string[];
+  designSelections: DesignSelection[];
 }
 
 // Generate dates for next 30 days (excluding Sundays)
@@ -76,6 +79,7 @@ export function OnsiteBookingForm({
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [requirementPhotos, setRequirementPhotos] = useState<string[]>([]);
+  const [designSelections, setDesignSelections] = useState<DesignSelection[]>([]);
 
   const dates = generateDates();
   const timeSlots = generateTimeSlots();
@@ -90,6 +94,7 @@ export function OnsiteBookingForm({
       scheduledTime: selectedTime,
       notes,
       requirementPhotos,
+      designSelections,
     });
   };
 
@@ -104,6 +109,13 @@ export function OnsiteBookingForm({
           Fill in the details below to schedule your on-site service appointment.
         </Text>
       </View>
+
+      {/* Design Options Picker */}
+      <DesignOptionsPicker
+        serviceId={service.id}
+        value={designSelections}
+        onChange={setDesignSelections}
+      />
 
       {/* Date Selection */}
       <View style={styles.section}>

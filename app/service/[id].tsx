@@ -100,6 +100,7 @@ export default function ServiceDetailScreen() {
       scheduledTime: data.scheduledTime,
       customerNotes: data.notes,
       requirementPhotos: data.requirementPhotos,
+      designSelections: data.designSelections,
     });
   };
 
@@ -128,6 +129,7 @@ export default function ServiceDetailScreen() {
         desiredOutcome: data.customizationNotes,
         requirementPhotos: data.desiredProductPhotos,
         materials: data.selectedMaterials,
+        designSelections: data.designSelections,
       });
 
       console.log('Booking created:', booking.id);
@@ -172,6 +174,7 @@ export default function ServiceDetailScreen() {
       requirementPhotos: data.itemPhotos,
       collectionMethod: data.collectionMethod,
       customerNotes: data.additionalNotes,
+      designSelections: data.designSelections,
     });
   };
 

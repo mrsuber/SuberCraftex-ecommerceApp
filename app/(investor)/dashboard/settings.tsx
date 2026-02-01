@@ -23,6 +23,7 @@ import {
   Mail,
   Phone,
   Building,
+  MessageSquare,
 } from 'lucide-react-native';
 import { Card, CardContent, CardHeader, Badge, Button } from '@/components/ui';
 import { apiClient } from '@/api/client';
@@ -158,7 +159,24 @@ export default function InvestorSettingsScreen() {
       ],
     },
     {
-      title: 'Legal & Support',
+      title: 'Feedback & Support',
+      items: [
+        {
+          type: 'press',
+          icon: MessageSquare,
+          label: 'Send Feedback',
+          onPress: () => router.push('/(investor)/dashboard/feedback'),
+        },
+        {
+          type: 'press',
+          icon: HelpCircle,
+          label: 'Help & Support',
+          onPress: () => Alert.alert('Support', 'Contact support at support@subercraftex.com'),
+        },
+      ],
+    },
+    {
+      title: 'Legal',
       items: [
         {
           type: 'press',
@@ -171,12 +189,6 @@ export default function InvestorSettingsScreen() {
           icon: FileText,
           label: 'Terms & Conditions',
           onPress: () => Alert.alert('Terms', 'Terms and conditions will open in browser.'),
-        },
-        {
-          type: 'press',
-          icon: HelpCircle,
-          label: 'Help & Support',
-          onPress: () => Alert.alert('Support', 'Contact support at support@subercraftex.com'),
         },
       ],
     },

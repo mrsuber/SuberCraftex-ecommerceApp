@@ -12,7 +12,8 @@ import { Package, Image as ImageIcon, FileText, Info, Link, Plus, X, Trash2 } fr
 import { Button } from '@/components/ui';
 import { PhotoUpload } from './PhotoUpload';
 import { MaterialGrid, MaterialQuantitySelector } from './MaterialGrid';
-import { servicesApi } from '@/api/services';
+import { DesignOptionsPicker } from './DesignOptionsPicker';
+import { servicesApi, DesignSelection } from '@/api/services';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/config/theme';
 import type { Service, Material } from '@/types';
 
@@ -33,6 +34,7 @@ export interface CustomProductionData {
   customizationNotes: string;
   selectedMaterials: Array<{ materialId: string; quantity: number }>;
   materialRequests: MaterialRequest[];
+  designSelections: DesignSelection[];
 }
 
 interface SelectedMaterial {
@@ -61,6 +63,9 @@ export function CustomProductionForm({
   // Product details
   const [desiredProductPhotos, setDesiredProductPhotos] = useState<string[]>([]);
   const [customizationNotes, setCustomizationNotes] = useState('');
+
+  // Design selections
+  const [designSelections, setDesignSelections] = useState<DesignSelection[]>([]);
 
   // Fetch materials for this service
   useEffect(() => {
@@ -157,6 +162,7 @@ export function CustomProductionForm({
         quantity: sm.quantity,
       })),
       materialRequests,
+      designSelections,
     });
   };
 
@@ -173,9 +179,16 @@ export function CustomProductionForm({
       <View style={styles.infoAlert}>
         <Info size={18} color={colors.info} />
         <Text style={styles.infoText}>
-          Select materials from our catalog or request custom materials. Upload reference photos and we'll provide a custom quote.
+          Select design options, materials, and upload reference photos. We'll provide a custom quote.
         </Text>
       </View>
+
+      {/* Design Options Picker */}
+      <DesignOptionsPicker
+        serviceId={service.id}
+        value={designSelections}
+        onChange={setDesignSelections}
+      />
 
       {/* Material Selection from Catalog */}
       <View style={styles.section}>

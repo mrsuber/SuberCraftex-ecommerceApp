@@ -9,6 +9,8 @@ import {
 import { Camera, FileText, Truck, Store, Info, Check } from 'lucide-react-native';
 import { Button } from '@/components/ui';
 import { PhotoUpload } from './PhotoUpload';
+import { DesignOptionsPicker } from './DesignOptionsPicker';
+import { DesignSelection } from '@/api/services';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/config/theme';
 import type { Service, CollectionMethod } from '@/types';
 
@@ -23,6 +25,7 @@ export interface CollectRepairData {
   desiredOutcome: string;
   collectionMethod: CollectionMethod;
   additionalNotes: string;
+  designSelections: DesignSelection[];
 }
 
 export function CollectRepairForm({
@@ -34,6 +37,7 @@ export function CollectRepairForm({
   const [desiredOutcome, setDesiredOutcome] = useState('');
   const [collectionMethod, setCollectionMethod] = useState<CollectionMethod | null>(null);
   const [additionalNotes, setAdditionalNotes] = useState('');
+  const [designSelections, setDesignSelections] = useState<DesignSelection[]>([]);
 
   const handleSubmit = () => {
     if (itemPhotos.length === 0) {
@@ -53,6 +57,7 @@ export function CollectRepairForm({
       desiredOutcome,
       collectionMethod,
       additionalNotes,
+      designSelections,
     });
   };
 
@@ -67,6 +72,13 @@ export function CollectRepairForm({
           Upload photos of your item and tell us what you'd like done. We'll review it and provide a quote for the repair or renewal work.
         </Text>
       </View>
+
+      {/* Design Options Picker */}
+      <DesignOptionsPicker
+        serviceId={service.id}
+        value={designSelections}
+        onChange={setDesignSelections}
+      />
 
       {/* Item Photos */}
       <View style={styles.section}>

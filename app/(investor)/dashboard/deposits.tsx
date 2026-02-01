@@ -400,12 +400,33 @@ export default function DepositsScreen() {
 
     // STEP 1: Send Money
     if (currentStep === 1) {
+      // Check if this deposit was previously rejected by admin
+      const wasRejected = activeMobileDeposit.notes && activeMobileDeposit.notes.length > 0;
+
       return (
         <>
           <Stack.Screen options={{ headerTitle: 'Mobile Money Deposit' }} />
           <SafeAreaView style={styles.container} edges={['bottom']}>
             <ScrollView showsVerticalScrollIndicator={false}>
               {renderStepIndicator()}
+
+              {/* Admin Rejection Notice - Show if receipt was rejected */}
+              {wasRejected && (
+                <View style={styles.section}>
+                  <Card variant="elevated" style={styles.rejectionCard}>
+                    <CardContent style={styles.rejectionCardContent}>
+                      <AlertCircle size={32} color={colors.error} />
+                      <Text style={styles.rejectionTitle}>Receipt Rejected</Text>
+                      <Text style={styles.rejectionMessage}>
+                        {activeMobileDeposit.notes}
+                      </Text>
+                      <Text style={styles.rejectionHint}>
+                        Please review the issue above and upload a new receipt.
+                      </Text>
+                    </CardContent>
+                  </Card>
+                </View>
+              )}
 
               {/* Amount Card */}
               <View style={styles.section}>
@@ -461,11 +482,13 @@ export default function DepositsScreen() {
               {/* Action Buttons */}
               <View style={styles.section}>
                 <Button
-                  title="I've Sent the Money - Upload Receipt"
+                  title={wasRejected ? "Upload New Receipt" : "I've Sent the Money - Upload Receipt"}
                   onPress={() => {
                     Alert.alert(
                       'Upload Receipt',
-                      'Take a photo or screenshot of your mobile money confirmation message',
+                      wasRejected
+                        ? 'Upload a clear photo or screenshot of your mobile money confirmation message'
+                        : 'Take a photo or screenshot of your mobile money confirmation message',
                       [
                         { text: 'Cancel', style: 'cancel' },
                         { text: 'Take Photo', onPress: () => handleTakePhoto(activeMobileDeposit.id) },
@@ -1426,6 +1449,41 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.sm,
     lineHeight: 20,
+  },
+  // Rejection Card (admin rejected receipt)
+  rejectionCard: {
+    backgroundColor: colors.error + '15',
+    borderColor: colors.error,
+    borderWidth: 1,
+  },
+  rejectionCardContent: {
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  rejectionTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: colors.error,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  rejectionMessage: {
+    fontSize: fontSize.base,
+    color: colors.gray[800],
+    textAlign: 'center',
+    lineHeight: 22,
+    fontWeight: fontWeight.medium,
+    backgroundColor: colors.white,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    width: '100%',
+    marginBottom: spacing.sm,
+  },
+  rejectionHint: {
+    fontSize: fontSize.sm,
+    color: colors.gray[600],
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   // Detail Rows
   detailRow: {

@@ -7,12 +7,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
-  Alert,
   Image,
+  TextInput,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { User, Mail, Lock, Phone, AlertTriangle, WifiOff, XCircle } from 'lucide-react-native';
+import { User, Mail, Lock, AlertTriangle, WifiOff, XCircle } from 'lucide-react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -20,10 +20,12 @@ import { Button, Input } from '@/components/ui';
 import { authApi } from '@/api/auth';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/config/theme';
 
+const CAMEROON_CODE = '+237';
+
 const registerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Please enter a valid email'),
-  phone: z.string().min(10, 'Please enter a valid phone number'),
+  phone: z.string().min(9, 'Please enter a valid phone number'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -111,23 +113,15 @@ export default function RegisterScreen() {
       await authApi.register({
         name: data.name,
         email: data.email,
-        phone: data.phone,
+        phone: `${CAMEROON_CODE}${data.phone.replace(/^0+/, '')}`,
         password: data.password,
       });
 
-      Alert.alert(
-        'Account Created!',
-        'We sent a verification link to your email. Please verify your email to log in.',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.push({
-              pathname: '/(auth)/verify-email',
-              params: { email: data.email },
-            }),
-          },
-        ]
-      );
+      // Navigate directly to verify-email screen with registration context
+      router.replace({
+        pathname: '/(auth)/verify-email',
+        params: { email: data.email, fromRegistration: 'true' },
+      });
     } catch (error: any) {
       setErrorInfo(getReadableError(error));
     } finally {
@@ -234,19 +228,34 @@ export default function RegisterScreen() {
               control={control}
               name="phone"
               render={({ field: { onChange, onBlur, value } }) => (
-                <Input
-                  label="Phone Number"
-                  placeholder="Enter your phone number"
-                  keyboardType="phone-pad"
-                  leftIcon={<Phone size={20} color={colors.gray[400]} />}
-                  value={value}
-                  onChangeText={(text) => {
-                    onChange(text);
-                    if (errorInfo) setErrorInfo(null);
-                  }}
-                  onBlur={onBlur}
-                  error={errors.phone?.message}
-                />
+                <View style={styles.phoneContainer}>
+                  <Text style={styles.phoneLabel}>Phone Number</Text>
+                  <View style={[
+                    styles.phoneInputRow,
+                    errors.phone && styles.phoneInputRowError,
+                  ]}>
+                    <View style={styles.countryCodeBox}>
+                      <Text style={styles.flagEmoji}>🇨🇲</Text>
+                      <Text style={styles.countryCodeText}>+237</Text>
+                    </View>
+                    <TextInput
+                      style={styles.phoneTextInput}
+                      placeholder="6XX XXX XXX"
+                      placeholderTextColor={colors.gray[400]}
+                      keyboardType="phone-pad"
+                      value={value}
+                      onChangeText={(text) => {
+                        const cleaned = text.replace(/[^0-9]/g, '');
+                        onChange(cleaned);
+                        if (errorInfo) setErrorInfo(null);
+                      }}
+                      onBlur={onBlur}
+                    />
+                  </View>
+                  {errors.phone && (
+                    <Text style={styles.phoneError}>{errors.phone.message}</Text>
+                  )}
+                </View>
               )}
             />
 
@@ -408,5 +417,57 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
     color: colors.primary.DEFAULT,
+  },
+  // Phone input styles
+  phoneContainer: {
+    marginBottom: spacing.md,
+  },
+  phoneLabel: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: colors.gray[700],
+    marginBottom: spacing.xs,
+  },
+  phoneInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.gray[300],
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.white,
+    overflow: 'hidden',
+  },
+  phoneInputRowError: {
+    borderColor: colors.error.DEFAULT,
+  },
+  countryCodeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.gray[50],
+    borderRightWidth: 1,
+    borderRightColor: colors.gray[300],
+    gap: spacing.xs,
+  },
+  flagEmoji: {
+    fontSize: 20,
+  },
+  countryCodeText: {
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.medium,
+    color: colors.gray[700],
+  },
+  phoneTextInput: {
+    flex: 1,
+    paddingVertical: spacing.md - 2,
+    paddingHorizontal: spacing.md,
+    fontSize: fontSize.base,
+    color: colors.gray[900],
+  },
+  phoneError: {
+    fontSize: fontSize.xs,
+    color: colors.error.DEFAULT,
+    marginTop: spacing.xs,
   },
 });

@@ -3,33 +3,39 @@ import {
   View,
   Text,
   StyleSheet,
-  Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Mail, RefreshCw, CheckCircle } from 'lucide-react-native';
+import { Mail, RefreshCw, CheckCircle, PartyPopper, AlertCircle } from 'lucide-react-native';
 import { Button } from '@/components/ui';
 import { authApi } from '@/api/auth';
-import { colors, spacing, fontSize, fontWeight } from '@/config/theme';
+import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/config/theme';
 
 export default function VerifyEmailScreen() {
   const router = useRouter();
-  const { email } = useLocalSearchParams<{ email: string }>();
+  const { email, fromRegistration } = useLocalSearchParams<{ email: string; fromRegistration?: string }>();
   const [isResending, setIsResending] = useState(false);
+  const [resendStatus, setResendStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [resendMessage, setResendMessage] = useState('');
+
+  const isNewRegistration = fromRegistration === 'true';
 
   const handleResendEmail = async () => {
     if (!email) {
-      Alert.alert('Error', 'Email address is missing. Please try again.');
+      setResendStatus('error');
+      setResendMessage('Email address is missing. Please try again.');
       return;
     }
 
     setIsResending(true);
+    setResendStatus('idle');
     try {
       await authApi.resendVerification(email);
-      Alert.alert('Email Sent', 'A new verification link has been sent to your email.');
+      setResendStatus('success');
+      setResendMessage('A new verification link has been sent to your email.');
     } catch (error: any) {
-      const message = error.response?.data?.error || 'Failed to resend email. Please try again.';
-      Alert.alert('Error', message);
+      setResendStatus('error');
+      setResendMessage(error.response?.data?.error || 'Failed to resend email. Please try again.');
     } finally {
       setIsResending(false);
     }
@@ -38,14 +44,31 @@ export default function VerifyEmailScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
+        {/* Success banner for new registrations */}
+        {isNewRegistration && (
+          <View style={styles.successBanner}>
+            <PartyPopper size={24} color={colors.success.DEFAULT} />
+            <View style={styles.successBannerText}>
+              <Text style={styles.successBannerTitle}>Account Created Successfully!</Text>
+              <Text style={styles.successBannerSubtitle}>
+                One more step: verify your email to start using your account.
+              </Text>
+            </View>
+          </View>
+        )}
+
         <View style={styles.iconContainer}>
           <Mail size={64} color={colors.primary.DEFAULT} />
         </View>
 
         <View style={styles.header}>
-          <Text style={styles.title}>Check Your Email</Text>
+          <Text style={styles.title}>
+            {isNewRegistration ? 'Verify Your Email' : 'Check Your Email'}
+          </Text>
           <Text style={styles.subtitle}>
-            We've sent a verification link to
+            {isNewRegistration
+              ? 'We sent a verification link to'
+              : "We've sent a verification link to"}
           </Text>
           <Text style={styles.email}>{email || 'your email'}</Text>
         </View>
@@ -70,6 +93,26 @@ export default function VerifyEmailScreen() {
             </Text>
           </View>
         </View>
+
+        {/* Resend status message */}
+        {resendStatus !== 'idle' && (
+          <View style={[
+            styles.resendStatusBanner,
+            resendStatus === 'success' ? styles.resendStatusSuccess : styles.resendStatusError,
+          ]}>
+            {resendStatus === 'success' ? (
+              <CheckCircle size={18} color={colors.success.DEFAULT} />
+            ) : (
+              <AlertCircle size={18} color={colors.error.DEFAULT} />
+            )}
+            <Text style={[
+              styles.resendStatusText,
+              resendStatus === 'success' ? styles.resendStatusTextSuccess : styles.resendStatusTextError,
+            ]}>
+              {resendMessage}
+            </Text>
+          </View>
+        )}
 
         <Button
           title="Go to Sign In"
@@ -107,6 +150,31 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: spacing.xl,
     justifyContent: 'center',
+  },
+  successBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: colors.success[50],
+    borderWidth: 1,
+    borderColor: colors.success[200],
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.xl,
+    gap: spacing.sm,
+  },
+  successBannerText: {
+    flex: 1,
+  },
+  successBannerTitle: {
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.semibold,
+    color: colors.success.DEFAULT,
+    marginBottom: 2,
+  },
+  successBannerSubtitle: {
+    fontSize: fontSize.sm,
+    color: colors.gray[700],
+    lineHeight: 20,
   },
   iconContainer: {
     alignItems: 'center',
@@ -148,6 +216,31 @@ const styles = StyleSheet.create({
     fontSize: fontSize.base,
     color: colors.gray[700],
     marginLeft: spacing.md,
+  },
+  resendStatusBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.lg,
+    gap: spacing.sm,
+  },
+  resendStatusSuccess: {
+    backgroundColor: colors.success[50],
+  },
+  resendStatusError: {
+    backgroundColor: colors.error[50],
+  },
+  resendStatusText: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    lineHeight: 20,
+  },
+  resendStatusTextSuccess: {
+    color: colors.success.DEFAULT,
+  },
+  resendStatusTextError: {
+    color: colors.error.DEFAULT,
   },
   resendContainer: {
     flexDirection: 'row',

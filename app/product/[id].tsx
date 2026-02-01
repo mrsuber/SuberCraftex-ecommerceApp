@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -45,6 +46,47 @@ export default function ProductDetailScreen() {
   const [quantity, setQuantity] = useState(1);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+  const toastTranslateY = useRef(new Animated.Value(20)).current;
+
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setToastVisible(true);
+
+    // Animate in
+    Animated.parallel([
+      Animated.timing(toastOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(toastTranslateY, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Auto-hide after 2 seconds
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(toastOpacity, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(toastTranslateY, {
+          toValue: 20,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setToastVisible(false);
+      });
+    }, 2000);
+  };
 
   const { data: product, isLoading, error } = useQuery({
     queryKey: ['product', id],
@@ -120,7 +162,8 @@ export default function ProductDetailScreen() {
       maxQuantity,
     });
 
-    Alert.alert('Added to Cart', `${name} has been added to your cart.`);
+    // Show passive toast notification instead of blocking alert
+    showToast(`${quantity > 1 ? `${quantity}x ` : ''}${name} added to cart`);
   };
 
   const handleBuyNow = () => {
@@ -441,6 +484,22 @@ export default function ProductDetailScreen() {
           productName={productName}
           onReviewSubmitted={handleReviewSubmitted}
         />
+
+        {/* Toast Notification */}
+        {toastVisible && (
+          <Animated.View
+            style={[
+              styles.toast,
+              {
+                opacity: toastOpacity,
+                transform: [{ translateY: toastTranslateY }],
+              },
+            ]}
+          >
+            <Check size={18} color={colors.white} />
+            <Text style={styles.toastText}>{toastMessage}</Text>
+          </Animated.View>
+        )}
       </SafeAreaView>
     </>
   );
@@ -703,5 +762,29 @@ const styles = StyleSheet.create({
     color: colors.gray[900],
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
+  },
+  toast: {
+    position: 'absolute',
+    bottom: 100,
+    left: spacing.lg,
+    right: spacing.lg,
+    backgroundColor: colors.gray[900],
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  toastText: {
+    flex: 1,
+    color: colors.white,
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.medium,
   },
 });

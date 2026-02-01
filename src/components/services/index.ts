@@ -7,3 +7,4 @@ export { CollectRepairForm } from './CollectRepairForm';
 export type { CollectRepairData } from './CollectRepairForm';
 export { PhotoUpload } from './PhotoUpload';
 export { MaterialGrid, MaterialQuantitySelector } from './MaterialGrid';
+export { DesignOptionsPicker } from './DesignOptionsPicker';

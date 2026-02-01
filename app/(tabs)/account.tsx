@@ -22,6 +22,8 @@ import {
   Shield,
   Scissors,
   Truck,
+  MessageSquare,
+  HelpCircle,
 } from 'lucide-react-native';
 import { Card, CardContent, Button } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth-store';
@@ -220,6 +222,26 @@ export default function AccountScreen() {
               title="Preferences"
               subtitle="Notifications and app settings"
               onPress={() => router.push('/preferences')}
+            />
+          </Card>
+        </View>
+
+        {/* Feedback & Support */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Feedback & Support</Text>
+          <Card variant="outlined">
+            <MenuItem
+              icon={<MessageSquare size={22} color={colors.primary.DEFAULT} />}
+              title="Send Feedback"
+              subtitle="Share suggestions or report issues"
+              onPress={() => router.push('/(investor)/dashboard/feedback')}
+            />
+            <View style={styles.menuDivider} />
+            <MenuItem
+              icon={<HelpCircle size={22} color={colors.primary.DEFAULT} />}
+              title="Help & Support"
+              subtitle="Get help with the app"
+              onPress={() => Alert.alert('Support', 'Contact support at support@subercraftex.com')}
             />
           </Card>
         </View>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,12 @@ import {
   Image,
   TouchableOpacity,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Heart, ShoppingCart, Trash2 } from 'lucide-react-native';
+import { Heart, ShoppingCart, Trash2, Check } from 'lucide-react-native';
 import { Button, Card, CardContent } from '@/components/ui';
 import { apiClient } from '@/api/client';
 import { API_ENDPOINTS } from '@/config/api';
@@ -24,6 +25,46 @@ export default function WishlistScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { addItem } = useCartStore();
+
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+  const toastTranslateY = useRef(new Animated.Value(20)).current;
+
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setToastVisible(true);
+
+    Animated.parallel([
+      Animated.timing(toastOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(toastTranslateY, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(toastOpacity, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(toastTranslateY, {
+          toValue: 20,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setToastVisible(false);
+      });
+    }, 2000);
+  };
 
   const { data: wishlist = [], isLoading } = useQuery({
     queryKey: ['wishlist'],
@@ -51,6 +92,7 @@ export default function WishlistScreen() {
         image: item.product.featured_image || '',
         quantity: 1,
       });
+      showToast(`${item.product.name} added to cart`);
     }
   };
 
@@ -134,6 +176,22 @@ export default function WishlistScreen() {
             ListEmptyComponent={renderEmpty}
             showsVerticalScrollIndicator={false}
           />
+        )}
+
+        {/* Toast Notification */}
+        {toastVisible && (
+          <Animated.View
+            style={[
+              styles.toast,
+              {
+                opacity: toastOpacity,
+                transform: [{ translateY: toastTranslateY }],
+              },
+            ]}
+          >
+            <Check size={18} color={colors.white} />
+            <Text style={styles.toastText}>{toastMessage}</Text>
+          </Animated.View>
         )}
       </SafeAreaView>
     </>
@@ -229,5 +287,29 @@ const styles = StyleSheet.create({
   },
   browseButton: {
     minWidth: 200,
+  },
+  toast: {
+    position: 'absolute',
+    bottom: 30,
+    left: spacing.lg,
+    right: spacing.lg,
+    backgroundColor: colors.gray[900],
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  toastText: {
+    flex: 1,
+    color: colors.white,
+    fontSize: fontSize.base,
+    fontWeight: fontWeight.medium,
   },
 });

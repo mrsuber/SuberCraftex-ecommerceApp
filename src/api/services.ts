@@ -2,6 +2,34 @@ import { apiClient, uploadFile } from './client';
 import { API_ENDPOINTS } from '@/config/api';
 import type { Service, ServiceBooking, Material } from '@/types';
 
+// Design Options types
+export interface DesignOption {
+  id: string;
+  name: string;
+  imageUrl: string;
+  description: string | null;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface DesignCategory {
+  id: string;
+  name: string;
+  description: string | null;
+  isRequired: boolean;
+  options: DesignOption[];
+}
+
+export interface DesignSelection {
+  categoryId: string;
+  categoryName: string;
+  optionIds: Array<{
+    optionId: string;
+    optionName: string;
+    imageUrl: string;
+  }>;
+}
+
 // Helper function to upload multiple photos
 async function uploadPhotos(photoUris: string[]): Promise<string[]> {
   if (!photoUris || photoUris.length === 0) return [];
@@ -68,6 +96,7 @@ interface CreateBookingData {
   collectionMethod?: 'admin_collects' | 'customer_brings';
   customerProvidedMaterials?: boolean;
   materials?: Array<{ materialId: string; quantity: number }>;
+  designSelections?: DesignSelection[];
   deliveryAddress?: {
     street: string;
     city: string;
@@ -103,6 +132,18 @@ export const servicesApi = {
       `${API_ENDPOINTS.services.materials(serviceId)}?isActive=true`
     );
     return response.data || [];
+  },
+
+  async getDesignCategories(serviceId: string): Promise<DesignCategory[]> {
+    try {
+      const response = await apiClient.get(
+        API_ENDPOINTS.services.designCategories(serviceId)
+      );
+      return response.data || [];
+    } catch (error) {
+      console.error('Error fetching design categories:', error);
+      return [];
+    }
   },
 
   async createBooking(data: CreateBookingData): Promise<ServiceBooking> {
