@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -81,6 +81,7 @@ const useCountdown = (targetDate: Date | null) => {
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const hasRefetchedOnExpiry = useRef(false);
 
   const { data: order, isLoading, error, refetch } = useQuery({
     queryKey: ['order', id],
@@ -92,6 +93,42 @@ export default function OrderDetailScreen() {
     enabled: !!id,
   });
 
+  // Extract order data (with defaults for when order is null)
+  const ord = (order || {}) as any;
+  const orderNumber = ord.orderNumber || ord.order_number || '';
+  const createdAt = ord.createdAt || ord.created_at;
+  const orderStatus = ord.orderStatus || ord.status || ord.order_status || 'pending';
+  const trackingNumber = ord.trackingNumber || ord.tracking_number;
+  const orderItems = ord.orderItems || ord.order_items || [];
+  const shippingAddress = ord.shippingAddress || ord.shipping_address;
+  const subtotal = ord.subtotal || 0;
+  const shippingCost = ord.shippingCost ?? ord.shipping_cost ?? 0;
+  const discountAmount = ord.discountAmount ?? ord.discount_amount ?? 0;
+  const taxAmount = ord.taxAmount ?? ord.tax_amount ?? 0;
+  const totalAmount = ord.totalAmount || ord.total_amount || 0;
+  const paymentMethod = ord.paymentMethod || ord.payment_method || 'cash';
+  const shippingMethod = ord.shippingMethod || ord.shipping_method || 'standard';
+  const pickupDeadline = ord.pickupDeadline || ord.pickup_deadline;
+
+  const isPickupOrder = shippingMethod === 'in_store';
+  const pickupDeadlineDate = useMemo(
+    () => (pickupDeadline ? new Date(pickupDeadline) : null),
+    [pickupDeadline]
+  );
+  const countdown = useCountdown(pickupDeadlineDate);
+
+  // Auto-refetch once when countdown expires to get updated order status
+  useEffect(() => {
+    if (countdown.expired && isPickupOrder && orderStatus === 'pending' && !hasRefetchedOnExpiry.current) {
+      hasRefetchedOnExpiry.current = true;
+      const timer = setTimeout(() => {
+        refetch();
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown.expired, isPickupOrder, orderStatus, refetch]);
+
+  // Early returns AFTER all hooks
   if (isLoading) {
     return (
       <View style={styles.loaderContainer}>
@@ -108,35 +145,6 @@ export default function OrderDetailScreen() {
       </View>
     );
   }
-
-  // Handle both camelCase (API) and snake_case (types)
-  const ord = order as any;
-  const orderNumber = ord.orderNumber || ord.order_number;
-  const createdAt = ord.createdAt || ord.created_at;
-  const orderStatus = ord.orderStatus || ord.status || ord.order_status;
-  const trackingNumber = ord.trackingNumber || ord.tracking_number;
-  const orderItems = ord.orderItems || ord.order_items || [];
-  const shippingAddress = ord.shippingAddress || ord.shipping_address;
-  const subtotal = ord.subtotal || 0;
-  const shippingCost = ord.shippingCost ?? ord.shipping_cost ?? 0;
-  const discountAmount = ord.discountAmount ?? ord.discount_amount ?? 0;
-  const taxAmount = ord.taxAmount ?? ord.tax_amount ?? 0;
-  const totalAmount = ord.totalAmount || ord.total_amount || 0;
-  const paymentMethod = ord.paymentMethod || ord.payment_method || 'cash';
-  const shippingMethod = ord.shippingMethod || ord.shipping_method || 'standard';
-  const pickupDeadline = ord.pickupDeadline || ord.pickup_deadline;
-
-  const isPickupOrder = shippingMethod === 'in_store';
-  const pickupDeadlineDate = pickupDeadline ? new Date(pickupDeadline) : null;
-  const countdown = useCountdown(pickupDeadlineDate);
-
-  // Auto-refetch when countdown expires to get updated order status
-  useEffect(() => {
-    if (countdown.expired && isPickupOrder && orderStatus === 'pending') {
-      const timer = setTimeout(() => refetch(), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [countdown.expired, isPickupOrder, orderStatus, refetch]);
 
   const isCancelled = orderStatus === 'cancelled' || orderStatus === 'refunded';
   const currentStepIndex = STATUS_STEPS.findIndex((s) => s.status === orderStatus);
