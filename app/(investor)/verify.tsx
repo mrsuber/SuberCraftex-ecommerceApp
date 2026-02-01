@@ -90,6 +90,9 @@ export default function KycVerifyScreen() {
             allowsEditing: true,
             aspect: type === 'selfie' ? [1, 1] : [4, 3],
             quality: 0.8,
+            cameraType: type === 'selfie'
+              ? ImagePicker.CameraType.front
+              : ImagePicker.CameraType.back,
           })
         : await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
