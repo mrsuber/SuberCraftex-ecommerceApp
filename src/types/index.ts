@@ -480,7 +480,7 @@ export interface BookingPayment {
 export type InvestorStatus = 'pending_verification' | 'active' | 'suspended' | 'exited';
 export type KycStatus = 'not_started' | 'pending' | 'approved' | 'rejected';
 export type WithdrawalType = 'cash' | 'profit' | 'product' | 'equipment_share';
-export type WithdrawalStatus = 'pending' | 'approved' | 'processing' | 'completed' | 'rejected' | 'cancelled';
+export type WithdrawalStatus = 'pending' | 'approved' | 'awaiting_investor_confirmation' | 'processing' | 'completed' | 'confirmed' | 'rejected' | 'cancelled' | 'disputed';
 export type TransactionType =
   | 'deposit'
   | 'withdrawal_cash'
@@ -672,6 +672,15 @@ export interface WithdrawalRequest {
   investor_notes: string | null;
   admin_notes: string | null;
   rejection_reason: string | null;
+  // Investor payment details (where to send money)
+  momo_number: string | null;
+  momo_name: string | null;
+  momo_provider: string | null;
+  // Admin payment proof
+  admin_receipt_url: string | null;
+  // Investor confirmation
+  investor_confirmed_at: string | null;
+  investor_feedback: string | null;
   requested_by: string;
   reviewed_by: string | null;
   processed_by: string | null;

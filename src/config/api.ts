@@ -90,6 +90,7 @@ export const API_ENDPOINTS = {
     deposits: '/api/investors/deposits',
     confirmDeposit: (id: string) => `/api/investors/deposits/${id}/confirm`,
     withdrawals: '/api/investors/withdrawals',
+    confirmWithdrawal: (id: string) => `/api/investors/withdrawals/${id}/confirm`,
   },
   // Payments
   payments: {
