@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   RefreshControl,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -229,6 +231,10 @@ export default function CatalogScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right']}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.flex}
+    >
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <Input
@@ -367,6 +373,8 @@ export default function CatalogScreen() {
           columnWrapperStyle={styles.row}
           contentContainerStyle={styles.productsContainer}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.3}
           ListFooterComponent={renderFooter}
@@ -381,6 +389,7 @@ export default function CatalogScreen() {
           }
         />
       )}
+    </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -389,6 +398,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.gray[50],
+  },
+  flex: {
+    flex: 1,
   },
   searchContainer: {
     flexDirection: 'row',

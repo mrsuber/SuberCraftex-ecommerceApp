@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Home,
   Search,
@@ -23,6 +24,9 @@ function CartBadge() {
 }
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(insets.bottom, 10);
+
   return (
     <Tabs
       screenOptions={{
@@ -31,8 +35,8 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: colors.white,
           borderTopColor: colors.gray[200],
-          height: 80,
-          paddingBottom: 20,
+          height: 60 + bottomPadding,
+          paddingBottom: bottomPadding,
           paddingTop: 10,
         },
         tabBarLabelStyle: {

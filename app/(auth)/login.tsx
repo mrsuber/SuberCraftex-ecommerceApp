@@ -117,7 +117,18 @@ export default function LoginScreen() {
       await login(data.email, data.password);
       router.replace('/(tabs)');
     } catch (error: any) {
-      setErrorInfo(getReadableError(error));
+      const errorData = getReadableError(error);
+
+      // If email not verified, navigate directly to verification screen
+      if (errorData.type === 'verify') {
+        router.push({
+          pathname: '/(auth)/verify-email',
+          params: { email: data.email },
+        });
+        return;
+      }
+
+      setErrorInfo(errorData);
     } finally {
       setIsLoading(false);
     }

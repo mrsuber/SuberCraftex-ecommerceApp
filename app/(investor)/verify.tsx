@@ -8,6 +8,8 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -302,7 +304,11 @@ export default function KycVerifyScreen() {
   if (kycStatusData?.kycStatus === 'rejected') {
     return (
       <SafeAreaView style={styles.container} edges={['bottom']}>
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.flex}
+      >
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <View style={styles.rejectionContainer}>
             <View style={[styles.statusIconContainer, styles.statusRejected]}>
               <XCircle size={48} color={colors.error.DEFAULT} />
@@ -377,6 +383,7 @@ export default function KycVerifyScreen() {
             </Text>
           </View>
         </ScrollView>
+      </KeyboardAvoidingView>
 
         <View style={styles.bottomAction}>
           <Button
@@ -394,7 +401,11 @@ export default function KycVerifyScreen() {
   // Default: Show KYC form for first-time submission
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.flex}
+      >
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* Instructions */}
         <View style={styles.instructions}>
           <Text style={styles.instructionsTitle}>Identity Verification</Text>
@@ -478,6 +489,7 @@ export default function KycVerifyScreen() {
           </Text>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Submit Button */}
       <View style={styles.bottomAction}>
@@ -497,6 +509,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.gray[50],
+  },
+  flex: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,
