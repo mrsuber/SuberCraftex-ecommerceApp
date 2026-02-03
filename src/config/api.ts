@@ -123,4 +123,13 @@ export const API_ENDPOINTS = {
     update: (id: string) => `/api/fittings/${id}`,
     delete: (id: string) => `/api/fittings/${id}`,
   },
+  // Blog
+  blog: {
+    list: '/api/blog',
+    detail: (idOrSlug: string) => `/api/blog/${idOrSlug}`,
+    engagement: (idOrSlug: string) => `/api/blog/${idOrSlug}/engagement`,
+    like: (idOrSlug: string) => `/api/blog/${idOrSlug}/like`,
+    comment: (idOrSlug: string) => `/api/blog/${idOrSlug}/comment`,
+    share: (idOrSlug: string) => `/api/blog/${idOrSlug}/share`,
+  },
 } as const;
